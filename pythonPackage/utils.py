@@ -76,6 +76,7 @@ def get_backgroundColor_formatting_request(sheet, row_number, row_data, backgrou
     return format_request
 
 def display_and_format_sheets(sheet, data):
+    data = data.round(4)
     headers = data.columns.tolist() 
     data = data.values.tolist() 
 
@@ -103,26 +104,34 @@ def display_and_format_excel(sheet, data):
 
 def get_spl_row():
     context = {
-        'averageSalePrice': 0,
-        'averageBuyPrice': 0,
-        'averageBuyPriceOfSoldShares': 0,
-        'numSharesSold': 0,
-        'numSharesBought': 0,
-        'numShares': 0,
-        'date': '01/01/2020',
-        'currentInvestment': 0,
-        'totalInvestment': 0,
+        'Average Sale Price': 0,
+        'Average Buy Price': 0,
+        'Average Cost of Sold Shares': 0,
+        'Shares Sold': 0,
+        'Shares Bought': 0,
+        'Date': '01/01/2020',
+        'Current Investment': 0,
+        'Total Investment': 0,
     }
     return context
 
 def get_prizing_details_yfinance(date, name):
-    output = [0,0,0,0]
+    name = name.upper()
+    nse_name = name + '.NS'
+    bse_name = name + '.BO'
+    output = [0,0,0,0,0]
     try:
-        data = yf.download(name, start=date,end=min(datetime.now(), date+timedelta(days=1)))
-        output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0]]
+        data = yf.download(nse_name, start=date,end=min(datetime.now(), date+timedelta(days=1)), period='10y')
+        output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0], data['Volume'].iloc[0]]
         return [float(x) for x in output]
     except Exception as e:
-        print("Encountered excpetion using yfinance API: ", e)
+        try:
+            print(date, datetime.now(), date + timedelta(days=1))
+            data = yf.download(bse_name, start=date,end=min(datetime.now(), date+timedelta(days=1)), period='5d')
+            output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0], data['Volume'].iloc[0]]
+            return [float(x) for x in output]
+        except Exception as e:
+            print("Encountered excpetion using yfinance API: ", e)
     return output
 
 def get_prizing_details_alphaVintage(stock_name, function):
@@ -137,10 +146,10 @@ def get_prizing_details_alphaVintage(stock_name, function):
             return time_data
         else:
             data = data['Global Quote']
-            output = [data['02. open'], data['03. high'], data['04. low'], data['05. price']]
+            output = [data['02. open'], data['03. high'], data['04. low'], data['05. price'], data['06. volume']]
             return [float(x) for x in output]
     except Exception as e:
-        print("Unable to get Share pricing details using Alpha-Vintage, Fallback to Yfinance API: ", e)
+        print(f"Unable to get Share pricing details using Alpha-Vintage, Fallback to Yfinance for stock {stock_name} API: {e}")
         data = get_prizing_details_yfinance(datetime.now() - timedelta(days=1), stock_name)
         return data
     
@@ -180,7 +189,7 @@ def transDetails_formatting_sheets(spreadsheet, sheet):
     worksheet_data = sheet.get_all_values()
     requests = []
     for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-        transaction_type = row_data[4]
+        transaction_type = row_data[6]
         if transaction_type == 'BUY':
             background_color = (0.8, 0.9, 1)
         else:
@@ -242,8 +251,8 @@ def dailyProfitLoss_formatting_sheets(spreadsheet, sheet):
     worksheet_data = sheet.get_all_values()
     requests = []
     for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-        if row_data[9] != "":
-            if float(row_data[9]) > 0.0:
+        if row_data[10] != "":
+            if float(row_data[10]) > 0.0:
                 background_color = (0.8, 0.9, 1)
             else:
                 background_color = (1, 0.8, 0.8)

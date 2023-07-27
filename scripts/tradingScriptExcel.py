@@ -81,6 +81,7 @@ def shareProfitLoss_update_data(data):
             rowData[name]['numSharesBought'] = numSharesBought
             rowData[name]['date'] = max(rowData[name]['date'], x[0])
             rowData[name]['totalInvestment'] = totalInvestment
+            rowData[name]['currentInvestment'] = currentInvestment
 
             
     for share_name, share_details in rowData.items():
@@ -118,7 +119,6 @@ def dailyProfitLoss_update_data(data):
     for (date, name), group in grouped_data:
         if date not in dailySpendings:
             dailySpendings[date] = 0
-        print(date)
         priceDetails = utils.get_prizing_details_yfinance(datetime.strptime(date,'%m/%d/%Y'), name)
         if date not in rowData:
             rowData[date] = {}

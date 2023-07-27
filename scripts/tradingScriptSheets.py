@@ -250,6 +250,7 @@ def shareProfitLossUpdate(spreadsheet, sheet_name, data):
             rowData[name]['numSharesBought'] = numSharesBought
             rowData[name]['date'] = max(rowData[name]['date'], x[0])
             rowData[name]['totalInvestment'] = totalInvestment
+            rowData[name]['currentInvestment'] = currentInvestment
 
             
     for share_name, share_details in rowData.items():
