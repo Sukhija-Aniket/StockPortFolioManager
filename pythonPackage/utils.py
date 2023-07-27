@@ -176,13 +176,13 @@ def initialize_data(data, extraCols=[], sortList=[]):
 def initialize_sheets(spreadsheet, sheet_name):
     sheet = spreadsheet.worksheet(sheet_name)
     sheet.clear() 
-    format_background_sheets(spreadsheet, sheet, 'A2:N999')    
+    format_background_sheets(spreadsheet, sheet, 'A2:P999')    
     return sheet
 
 def initialize_excel(spreadsheet, sheet_name):
     sheet = spreadsheet[sheet_name]
     sheet.clear()
-    format_background_excel(sheet, 'A2:N999')
+    format_background_excel(sheet, 'A2:P999')
     return sheet
 
 def transDetails_formatting_sheets(spreadsheet, sheet):
@@ -200,7 +200,7 @@ def transDetails_formatting_sheets(spreadsheet, sheet):
         spreadsheet.batch_update({"requests": requests})
 
 def transDetails_formatting_excel(sheet):
-    cell_range = 'A2:N999'
+    cell_range = 'A2:P999'
     redFill = openpyxl.styles.PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
     blueFill = openpyxl.styles.PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
     for row in sheet[cell_range]:
@@ -231,7 +231,7 @@ def shareProfitLoss_formatting_sheets(spreadsheet, sheet):
         spreadsheet.batch_update({"requests": requests})
     
 def shareProfitLoss_formatting_excel(sheet):
-    cell_range = 'A2:N999'
+    cell_range = 'A2:P999'
     redFill = openpyxl.styles.PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
     blueFill = openpyxl.styles.PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
     for row in sheet[cell_range]:
@@ -262,7 +262,7 @@ def dailyProfitLoss_formatting_sheets(spreadsheet, sheet):
         spreadsheet.batch_update({"requests": requests})
 
 def dailyProfitLoss_formatting_excel(sheet):
-    cell_range = 'A2:N999'
+    cell_range = 'A2:P999'
     redFill = openpyxl.styles.PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
     blueFill = openpyxl.styles.PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
     for row in sheet[cell_range]:
