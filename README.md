@@ -20,7 +20,7 @@ Please note that this project name and description are intended for illustrative
 
 Before running the project, you need to have the following installed and set up:
 
-1. Python (version X.X.X or later)
+1. Python (version 3.X.X or later)
 2. pip (package installer for Python)
 3. Virtual environment (optional but recommended)
 
@@ -75,7 +75,11 @@ To run the project, you need to set up the following configuration files:
    STOCK_API_KEY=
    SPREADSHEET_ID=
    EXCEL_FILE_NAME=
+   LAST_EXECUTION_DATE_SHEETS= <optional>
+   LAST_EXECUTION_DATE_EXCEL= <optional>
    ```
+
+   The  optional fields are required if you wish to execute the script only once per Day, in that case uncomment the line `script_already_executed()` and now your script can run at max once per day.
 2. `tradingprojects-apiKey.json` file:
 
    To access the Google Sheets API and make changes to Google Sheets, you need to authenticate your application. Google offers two authentication methods: OAuth 2.0 and Service Accounts.
@@ -108,20 +112,28 @@ To run the project, you need to set up the following configuration files:
 
    - On Windows:
 
-   ```
-   venv\Scripts\activate
-   ```
+      ```
+      venv\Scripts\activate
+      ```
 
    - On macOS and Linux:
 
-   ```
-   source venv/bin/activate
-   ```
+      ```
+      source venv/bin/activate
+      ```
 2. Run the Python script:
 
-```
-python tradingScript.py
-```
+   ```
+   python tradingScript.py
+   ```
+3. Provide the necessary Command Line Arguments:
+   - The first one is absolute path of the `csv` file downloaded from Kite Zerodha
+   - The second is whether you would like to choose `excel` or `sheets`. Leave empty to use default i.e. `excel`
+   - If you choose `sheets`, for the third argument provide the `spreadsheet_id` for the spreadsheet you would like to use or leave empty for default spreadsheet.
+   - Make sure the spreadsheet you choose is being shared with the Service Account you created.
+   - If you choose `excel`, for the third argument provide the name of the excel file which you would like to use, leave empty for default excel file.
+   - Make sure to place the excel file in the `assets` folder present in the project.
+
 
 ## Contributing
 

@@ -8,9 +8,8 @@ scripts_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(scripts_directory)
 sys.path.append(parent_directory)
 
-from pythonPackage.constants import *
 from pythonPackage import utils
-
+from pythonPackage.constants import *
 
 # Important Information
 from dotenv import load_dotenv
@@ -19,7 +18,7 @@ load_dotenv(env_file)
 
 spreadsheet_id = os.getenv('SPREADSHEET_ID')
 excel_file_name = os.getenv('EXCEL_FILE_NAME')
-spreadsheet_file = os.path.join(parent_directory, 'secrets', excel_file_name)
+spreadsheet_file = os.path.join(parent_directory, 'assets', excel_file_name)
 api_key_file_name = 'tradingprojects-apiKey.json'
 credentials_file = os.path.join(parent_directory, 'secrets', api_key_file_name)
 
@@ -27,9 +26,7 @@ credentials_file = os.path.join(parent_directory, 'secrets', api_key_file_name)
 # Utility Functions
 
 def update_env_file(key, value):
-    env_file_path = os.path.join(parent_directory, '.env')
-
-    with open(env_file_path, 'r') as file:
+    with open(env_file, 'r') as file:
         lines = file.readlines()
 
     updated_lines = []
@@ -38,29 +35,33 @@ def update_env_file(key, value):
             line = f"{key}={value}\n"
         updated_lines.append(line)
 
-    with open(env_file_path, 'w') as file:
+    with open(env_file, 'w') as file:
         file.writelines(updated_lines)
 
-
 def get_args_and_input():
+    input_file = None
     key = 'EXCEL_FILE_NAME'
+    if len(sys.argv) > 3:
+        value = sys.argv[3]
     if len(sys.argv) > 2:
-        value = sys.argv[2]
-    if len(sys.argv) > 1:
-        typ = sys.argv[1]
+        typ = sys.argv[2].lower()
         value = ''
         if typ == 'sheets':
             key = 'SPREADSHEET_ID'
-
     else:
+        if len(sys.argv) > 1:
+            input_file = sys.argv[1]
+        else:
+            input_file = input("Please enter the absolute path of the file downloaded from Zerodha: ")
         print("Please select 'excel' or 'sheets, leave empty to use excel as default")
         typ = input("Enter your choice: ")
+        typ = typ.lower()
         if (typ == 'excel' or typ == ''):
             print(
                 f"{excel_file_name} is the default file, enter name below if you wish to change it, leave empty otherwise")
             value = input("Enter your choice: ")
 
-        elif (typ == 'sheets'):
+        elif (typ== 'sheets'):
             print(f"{spreadsheet_id} is the default google sheet, enter spreadsheet_id below if you wish to change it, leave empty otherwise")
             value = input("Enter your choice: ")
             key = 'SPREADSHEET_ID'
@@ -68,196 +69,39 @@ def get_args_and_input():
     if value is not None and value != '':
         update_env_file(key, value)
 
-    return typ
+    return input_file, typ
 
+def data_already_exists(raw_data, input_data):
+    if not raw_data.empty:
+        is_duplicate = raw_data[
+            (raw_data[Raw_constants.DATE] == input_data[Raw_constants.DATE][0]) &
+            (raw_data[Raw_constants.NAME] == input_data[Raw_constants.NAME][0])
+        ].shape[0] > 0
 
-def update_transaction_type(x):
-    if x[0] != '-':
-        return BUY
-    return SELL
+        if is_duplicate:
+            print("Orders Data Already Exists in the file, Exiting...")
+            exit()
 
+def script_already_executed():
+    last_execution_date = os.getenv(f'LAST_EXECUTION_DATE_{typ.upper()}')
+    if (last_execution_date == datetime.now().strftime(DATE_FORMAT)):
+        print("The script has been already been executed today, Exiting...")
+        exit()
+    update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date)
 
-def update_intraday_count(data):
-    infoMap = {}
-    rowData = {}
-    sumData = {}
-    grouped_data = data.groupby(
-        [Raw_constants.NAME, TransDetails_constants.TRANSACTION_TYPE, Raw_constants.DATE])
-    for (name, transaction_type, date), group in grouped_data:
-        if name not in infoMap:
-            infoMap[name] = {}
-            rowData[name] = {}
-            sumData[name] = {}
-        if date not in infoMap[name]:
-            infoMap[name][date] = {}
-            rowData[name][date] = []
-            sumData[name][date] = 0
-        if transaction_type not in infoMap[name][date]:
-            infoMap[name][date][transaction_type] = group.values.tolist()
+def get_sheets_and_data():
+    if typ == 'sheets':
+        spreadsheet = utils.authenticate_and_get_sheets(
+            credentials_file, spreadsheet_id)
+        worksheets = spreadsheet.worksheets()
+        sheet_names = [worksheet.title for worksheet in worksheets]
+        raw_data = utils.read_data_from_sheets(spreadsheet, sheet_names[0])
+    else:
+        spreadsheet = openpyxl.load_workbook(spreadsheet_file)
+        sheet_names = spreadsheet.sheetnames
+        raw_data = utils.read_data_from_excel(spreadsheet, sheet_names[0])
 
-        if transaction_type == SELL:
-            buyCnt = 0
-
-            if BUY in infoMap[name][date]:
-                for x in infoMap[name][date][BUY]:
-                    buyCnt += abs(x[3])
-            for x in infoMap[name][date][transaction_type]:
-                sellCnt = min(abs(x[3]), buyCnt)
-                buyCnt -= sellCnt
-                rowData[name][date].append(sellCnt)
-                sumData[name][date] += sellCnt
-
-    data[TransDetails_constants.INTRADAY_COUNT] = data.apply(
-        calculate_intra_sell_count, axis=1, args=(rowData,))
-    data[TransDetails_constants.INTRADAY_COUNT] = data.apply(
-        calculate_intra_buy_count, axis=1, args=(sumData,))
-
-
-def calculate_intra_sell_count(row, rowData):
-    name = row[Raw_constants.NAME]
-    date = row[Raw_constants.DATE]
-    transaction_type = row[TransDetails_constants.TRANSACTION_TYPE]
-
-    if transaction_type == BUY:
-        return 0
-
-    if name not in rowData or date not in rowData[name]:
-        return 0
-
-    if len(rowData[name][date]) > 0:
-        intraCount = rowData[name][date][0]
-        rowData[name][date].pop(0)
-        return intraCount
-
-
-def calculate_intra_buy_count(row, sumData):
-    name = row[Raw_constants.NAME]
-    date = row[Raw_constants.DATE]
-    transaction_type = row[TransDetails_constants.TRANSACTION_TYPE]
-
-    if name not in sumData or date not in sumData[name]:
-        return 0
-
-    if transaction_type == SELL:
-        return row[TransDetails_constants.INTRADAY_COUNT]
-
-    intraCount = min(sumData[name][date], row[Raw_constants.QUANTITY])
-    sumData[name][date] -= intraCount
-    return intraCount
-
-
-def calculate_stt(row):
-    intraDay_charges, delivery_charges = 0, 0
-    delivery_charges = (abs(row[Raw_constants.QUANTITY]) -
-                        row[TransDetails_constants.INTRADAY_COUNT]) * 0.001 * row[Raw_constants.PRICE]
-    if row[TransDetails_constants.TRANSACTION_TYPE] == SELL:
-        intraDay_charges = row[TransDetails_constants.INTRADAY_COUNT] * \
-            0.00025 * row[Raw_constants.PRICE]
-    return intraDay_charges + delivery_charges
-
-
-def calculate_transaction_charges(row):
-    if row[Raw_constants.STOCK_EXCHANGE] == BSE:
-        return abs(row[Raw_constants.NET_AMOUNT]) * 0.0000375
-    return abs(row[Raw_constants.NET_AMOUNT]) * 0.0000335
-
-def calculate_stamp_duty(row):
-    if row[TransDetails_constants.TRANSACTION_TYPE] == SELL:
-        return 0
-    
-    intraDay_charges, delivery_charges = 0, 0
-    delivery_charges = (abs(row[Raw_constants.QUANTITY]) -
-                        row[TransDetails_constants.INTRADAY_COUNT]) * 0.00015 * row[Raw_constants.PRICE]
-    intraDay_charges = row[TransDetails_constants.INTRADAY_COUNT] * \
-        0.00003 * row[Raw_constants.PRICE]
-    return intraDay_charges + delivery_charges
-
-
-def calculate_dp_charges(row, dp_data):
-    name = row[Raw_constants.NAME]
-    date = row[Raw_constants.DATE]
-    if row[TransDetails_constants.TRANSACTION_TYPE] == SELL and abs(row[Raw_constants.QUANTITY]) > row[TransDetails_constants.INTRADAY_COUNT]:
-        if name not in dp_data:
-            dp_data[name] = {}
-        if date not in dp_data[name]:
-            dp_data[name][date] = True
-            return 15.93
-    return 0
-
-
-def calculate_brokerage(row):
-    if row[TransDetails_constants.TRANSACTION_TYPE] == SELL and row[TransDetails_constants.INTRADAY_COUNT] > 0:
-        return min(((row[TransDetails_constants.NET_AMOUNT] * row[TransDetails_constants.INTRADAY_COUNT])/row[TransDetails_constants.QUANTITY]) * 0.0003, 20)
-    # val = min(data[TransDetails_constants.NET_AMOUNT] * 0.0003, 20)
-    return 0
-
-def compare_dates(d1, d2):
-    dt1 = datetime.strptime(d1, DATE_FORMAT)
-    dt2 = datetime.strptime(d2, DATE_FORMAT)
-
-    if dt1 == dt2:
-        return 0
-    elif dt1 > dt2:
-        return 1
-
-    return -1
-
-def calculate_average_cost_of_sold_shares(infoMap):
-    sold_list = infoMap[SELL]
-    buy_list = infoMap[BUY]
-
-    j = 0
-    price = 0
-    intraCount = 0
-    delCount = 0
-    counter = 0
-
-    # Calculating for IntraDay Orders
-    for i in range(0, len(sold_list)):
-        sold_list[i][3] = abs(sold_list[i][3])
-        sold_list[i][6] = abs(sold_list[i][6])
-        if j >= len(buy_list):
-            break
-        if compare_dates(buy_list[j][0], sold_list[i][0]) == 0:
-            if buy_list[j][3] < sold_list[i][3]:
-                intraCount += buy_list[j][3]
-                sold_list[i][3] -= buy_list[j][3]
-                price += buy_list[j][6]
-                buy_list[j][3] = 0
-                buy_list[j][6] = 0
-                j += 1
-                i -= 1
-            elif buy_list[j][3] > sold_list[i][3]:
-                price += ((buy_list[j][6] * sold_list[i][3])/buy_list[j][3])
-                buy_list[j][6] -= ((buy_list[j][6] *
-                                    sold_list[i][3])/buy_list[j][3])
-                buy_list[j][3] -= sold_list[i][3]
-                intraCount += sold_list[i][3]
-                sold_list[i][3] = 0
-            else:
-                intraCount += sold_list[i][3]
-                sold_list[i][3] = 0
-                price += buy_list[j][6]
-                buy_list[j][3] = 0
-                buy_list[j][6] = 0
-                j += 1
-        elif compare_dates(buy_list[j][0], sold_list[i][0]) < 0:
-            i -= 1
-            j += 1
-
-    # Calculating for Delivery Orders
-    for x in sold_list:
-        delCount += x[3]
-    for x in buy_list:
-        if x[3] <= (delCount - counter):
-            price += x[6]
-            counter += x[3]
-        else:
-            price += (x[6] * (delCount - counter))/x[3]
-            counter = delCount
-    counter += intraCount
-
-    return price/counter
+    return spreadsheet, sheet_names, raw_data
 
 
 # Functions for Data
@@ -266,37 +110,37 @@ def transDetails_update_data(data):
     # Ignoring BTST for Now, and considering only IntraDay and Delivery
 
     data[TransDetails_constants.TRANSACTION_TYPE] = data[TransDetails_constants.QUANTITY].apply(
-        lambda x: update_transaction_type(x))
+        lambda x: utils.update_transaction_type(x))
 
     sortList = [Raw_constants.NAME, Raw_constants.DATE,
                 TransDetails_constants.TRANSACTION_TYPE]
     data = utils.initialize_data(data, sortList=sortList)
 
     # check for Intraday Count and Delivery Count
-    update_intraday_count(data)
+    utils.update_intraday_count(data)
 
     # Calculating Additional Costs Incurred
-    data[TransDetails_constants.STT] = data.apply(calculate_stt, axis=1)
+    data[TransDetails_constants.STT] = data.apply(utils.calculate_stt, axis=1)
     data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] = data.apply(
-        calculate_transaction_charges, axis=1)
+        utils.calculate_transaction_charges, axis=1)
     data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = abs(
         data[TransDetails_constants.NET_AMOUNT] * 0.000001)
     data[TransDetails_constants.GST] = abs(
         0.18 * (data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES]) + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES])
     data[TransDetails_constants.STAMP_DUTY] = abs(
         0.00015 * data[TransDetails_constants.NET_AMOUNT])
-    data[TransDetails_constants.STAMP_DUTY] = data.apply(calculate_stamp_duty, axis=1)
+    data[TransDetails_constants.STAMP_DUTY] = data.apply(
+        utils.calculate_stamp_duty, axis=1)
     data[TransDetails_constants.DP_CHARGES] = data.apply(
-        calculate_dp_charges, axis=1, args=({},))
+        utils.calculate_dp_charges, axis=1, args=({},))
     data[TransDetails_constants.BROKERAGE] = data.apply(
-        calculate_brokerage, axis=1)
+        utils.calculate_brokerage, axis=1)
     data[TransDetails_constants.FINAL_AMOUNT] = data[TransDetails_constants.NET_AMOUNT] + data[TransDetails_constants.STT] + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] + \
         data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + data[TransDetails_constants.GST] + \
         data[TransDetails_constants.STAMP_DUTY] + \
         data[TransDetails_constants.DP_CHARGES] + \
         data[TransDetails_constants.BROKERAGE]
     return data
-
 
 def shareProfitLoss_update_data(data):
 
@@ -333,7 +177,7 @@ def shareProfitLoss_update_data(data):
             if BUY in infoMap[name]:
                 for x in infoMap[name][BUY]:
                     currentInvestment += x[6]
-                averageCostOfSoldShares = calculate_average_cost_of_sold_shares(
+                averageCostOfSoldShares = utils.calculate_average_cost_of_sold_shares(
                     infoMap[name])
             rowData[name][ShareProfitLoss_constants.AVERAGE_SALE_PRICE] = averageSalePrice
             rowData[name][ShareProfitLoss_constants.SHARES_SOLD] = numSharesSold
@@ -381,7 +225,6 @@ def shareProfitLoss_update_data(data):
         })
         df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
     return df
-
 
 def dailyProfitLoss_update_data(data):
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
@@ -453,77 +296,58 @@ def dailyProfitLoss_update_data(data):
     return df
 
 
-# Functions for Google Sheets
+# Functions for Google sheets & Excel
 
-def transDetails_update_sheets(spreadsheet, sheet_name, data):
+def update_sheet(sheet_name, data, formatting_function=None):
     sheet = utils.initialize_sheets(spreadsheet, sheet_name)
     utils.display_and_format_sheets(sheet, data)
-    utils.transDetails_formatting_sheets(spreadsheet, sheet)
+    if formatting_function is not None:
+        formatting_function(spreadsheet, sheet)
+    print(f"{sheet_name} updated Successfully!")
 
-
-def shareProfitLoss_update_sheets(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    utils.shareProfitLoss_formatting_sheets(spreadsheet, sheet)
-
-
-def dailyProfitLoss_update_sheets(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    utils.dailyProfitLoss_formatting_sheets(spreadsheet, sheet)
-
-
-# Functions for Excel
-
-def transDetails_update_excel(spreadsheet, sheet_name, data):
+def update_excel(sheet_name, data, formatting_function=None):
     sheet = utils.initialize_excel(spreadsheet, sheet_name)
     utils.display_and_format_excel(sheet, data)
-    utils.transDetails_formatting_excel(sheet)
-
-
-def shareProfitLoss_update_excel(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    utils.shareProfitLoss_formatting_excel(sheet)
-
-
-def dailyProfitLoss_update_excel(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    utils.dailyProfitLoss_formatting_excel(sheet)
+    if formatting_function is not None:
+        formatting_function(spreadsheet, sheet)
+    print(f"{sheet_name} updated Successfully!")
 
 
 # Main Program
 
+
 if __name__ == "__main__":
 
-    typ = get_args_and_input()
+    # Handling User Inputs
+    input_file, typ = get_args_and_input()
+    input_file = utils.get_valid_path(input_file)
+
+    # Not allowing the script to execute twice a day.
+    # script_already_executed()
+
+    # Gathering Information
+    input_data = pd.read_csv(input_file)
+    input_data = utils.format_input_data(input_data)
+    spreadsheet, sheet_names, raw_data = get_sheets_and_data()
+    
+    # Checking for Existing Data
+    data_already_exists(raw_data, input_data)
+
+    # Handling the data
+    raw_data = pd.concat([raw_data, input_data], ignore_index=True)
+    transDetails_data = transDetails_update_data(raw_data.copy(deep=True))
+    shareProfitLoss_data = shareProfitLoss_update_data(transDetails_data.copy(deep=True))
+    dailyProfitLoss_data = dailyProfitLoss_update_data(transDetails_data.copy(deep=True))
+
+    # Handling the formatting for Google  Sheets & Excel
     if typ == 'sheets':
-        spreadsheet = utils.authenticate_and_get_sheets(
-            credentials_file, spreadsheet_id)
-        worksheets = spreadsheet.worksheets()
-        sheet_names = [worksheet.title for worksheet in worksheets]
+        update_sheet(sheet_names[0], raw_data)
+        update_sheet(sheet_names[1], transDetails_data, utils.transDetails_formatting_sheets)
+        update_sheet(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_sheets)
+        update_sheet(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_sheets)
     else:
-        spreadsheet = openpyxl.load_workbook(spreadsheet_file)
-        sheet_names = spreadsheet.sheetnames
+        update_excel(sheet_names[0], raw_data)
+        update_excel(sheet_names[1], transDetails_data, utils.transDetails_formatting_excel)
+        update_excel(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_excel)
+        update_excel(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_excel)
 
-    input_data = utils.read_data_from_sheets(spreadsheet, sheet_names[0])
-    print("Raw Input Data read successfully")
-
-    transDetails_data = transDetails_update_data(input_data.copy(deep=True))
-
-    transDetails_update_sheets(spreadsheet, sheet_names[1], transDetails_data)
-    print("Transaction Details updated successfully")
-
-    data = utils.read_data_from_sheets(spreadsheet, sheet_names[1])
-    print("Transaction Details Data read successfully\n\n")
-
-    shareProfitLoss_data = shareProfitLoss_update_data(data.copy(deep=True))
-    shareProfitLoss_update_sheets(
-        spreadsheet, sheet_names[2], shareProfitLoss_data)
-    print("Share Profit updated successfully")
-
-    dailyProfitLoss_data = dailyProfitLoss_update_data(data.copy(deep=True))
-    dailyProfitLoss_update_sheets(
-        spreadsheet, sheet_names[3], dailyProfitLoss_data)
-    print("Daily Profit updated successfully")
