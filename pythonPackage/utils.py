@@ -185,7 +185,6 @@ def initialize_data(data, extraCols=[], sortList=[]):
     
     for header in data.columns.tolist():
         if is_formatable(data[header].iloc[0]):
-            print(data[header].iloc[0])
             data[header] = pd.to_numeric(data[header])
     data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=DATE_FORMAT)
     
@@ -208,7 +207,6 @@ def format_input_data(input_data):
     ) if (isinstance(value, str) and not value.startswith('python'))}
     df = pd.DataFrame(columns=list(constants_dict.values()))
 
-    print(df, input_data)
     df[Raw_constants.DATE] = input_data[Orders_constants.DATE].apply(
         lambda x: get_date(x))
     df[Raw_constants.NAME] = input_data[Orders_constants.NAME]
@@ -242,8 +240,6 @@ def get_date(date):
 
 def get_net_amount(row):
     val = int(row[Raw_constants.QUANTITY]) * float(row[Raw_constants.PRICE])
-    print(val)
-    print(str(val))
     return str(val)
 
 def update_transaction_type(x):
@@ -487,7 +483,6 @@ def get_prizing_details_yfinance(date, name):
         return [float(x) for x in output]
     except Exception as e:
         try:
-            print(date, datetime.now(), date + timedelta(days=1))
             data = yf.download(bse_name, start=date,end=min(datetime.now(), date+timedelta(days=1)), period='5d')
             output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0], data['Volume'].iloc[0]]
             return [float(x) for x in output]

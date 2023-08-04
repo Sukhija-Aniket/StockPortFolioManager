@@ -48,6 +48,7 @@ def get_args_and_input():
         value = ''
         if typ == 'sheets':
             key = 'SPREADSHEET_ID'
+        input_file = sys.argv[1]
     else:
         if len(sys.argv) > 1:
             input_file = sys.argv[1]
@@ -200,8 +201,9 @@ def shareProfitLoss_update_data(data):
             rowData[name][ShareProfitLoss_constants.CURRENT_INVESTMENT] = currentInvestment
 
     for share_name, share_details in rowData.items():
-        actualStockDetails = utils.get_prizing_details_alphaVintage(
-            share_name, GLOBAL_QUOTE)
+        actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(share_details[ShareProfitLoss_constants.DATE], DATE_FORMAT), share_name)
+        # actualStockDetails = utils.get_prizing_details_alphaVintage(
+        #     share_name, GLOBAL_QUOTE)
         closing_price = 0
         if len(actualStockDetails) > 0:
             closing_price = actualStockDetails[3]
