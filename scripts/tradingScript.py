@@ -27,7 +27,7 @@ credentials_file = os.path.join(parent_directory, 'secrets', api_key_file_name)
 
 def update_env_file(key, value):
     with open(env_file, 'r') as file:
-        lines = file.readlines()
+        lines = file.readlines()    
 
     updated_lines = []
     for line in lines:
@@ -54,7 +54,7 @@ def get_args_and_input():
             input_file = sys.argv[1]
         else:
             input_file = input("Please enter the absolute path of the file downloaded from Zerodha: ")
-        print("Please select 'excel' or 'sheets, leave empty to use excel as default")
+        print("\nPlease select 'excel' or 'sheets, leave empty to use excel as default")
         typ = input("Enter your choice: ")
         typ = typ.lower()
         if (typ == 'excel' or typ == ''):
@@ -73,6 +73,8 @@ def get_args_and_input():
     return input_file, typ
 
 def data_already_exists(raw_data, input_data):
+    input_data.reset_index(drop=True, inplace=True)
+    print(input_data)
     if not raw_data.empty:
         is_duplicate = raw_data[
             (raw_data[Raw_constants.DATE] == input_data[Raw_constants.DATE][0]) &
@@ -108,7 +110,7 @@ def get_sheets_and_data():
 # Functions for Data
 
 def transDetails_update_data(data):
-    # Ignoring BTST for Now, and considering only IntraDay and Delivery
+    # Considering only IntraDay and Delivery and not FNO
 
     data[TransDetails_constants.TRANSACTION_TYPE] = data[TransDetails_constants.QUANTITY].apply(
         lambda x: utils.update_transaction_type(x))
@@ -126,16 +128,16 @@ def transDetails_update_data(data):
         utils.calculate_transaction_charges, axis=1)
     data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = abs(
         data[TransDetails_constants.NET_AMOUNT] * 0.000001)
+    data[TransDetails_constants.BROKERAGE] = data.apply(
+        utils.calculate_brokerage, axis=1)
     data[TransDetails_constants.GST] = abs(
-        0.18 * (data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES]) + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES])
+        0.18 * (data[TransDetails_constants.BROKERAGE] + data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES]))
     data[TransDetails_constants.STAMP_DUTY] = abs(
         0.00015 * data[TransDetails_constants.NET_AMOUNT])
     data[TransDetails_constants.STAMP_DUTY] = data.apply(
         utils.calculate_stamp_duty, axis=1)
     data[TransDetails_constants.DP_CHARGES] = data.apply(
         utils.calculate_dp_charges, axis=1, args=({},))
-    data[TransDetails_constants.BROKERAGE] = data.apply(
-        utils.calculate_brokerage, axis=1)
     data[TransDetails_constants.FINAL_AMOUNT] = data[TransDetails_constants.NET_AMOUNT] + data[TransDetails_constants.STT] + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] + \
         data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + data[TransDetails_constants.GST] + \
         data[TransDetails_constants.STAMP_DUTY] + \
@@ -153,6 +155,7 @@ def shareProfitLoss_update_data(data):
 
     infoMap = {}
     rowData = {}
+    # Added the condition to remove key,value pairs created due to class itself.
     constants_dict = {key: value for key, value in vars(ShareProfitLoss_constants).items(
     ) if (isinstance(value, str) and not value.startswith('python'))}
     df = pd.DataFrame(columns=list(constants_dict.values()))
@@ -164,10 +167,11 @@ def shareProfitLoss_update_data(data):
         averageSalePrice = 0
         averageCostOfSoldShares = 0
         numSharesBought = 0
+        numSharesSold = 0
         totalInvestment = 0
         currentInvestment = 0
-        numSharesSold = 0
 
+        # X --> Date, Name, Price, Quantity, Net Amount, Transaction Type, Final Amount
         infoMap[name][transaction_type] = group.values.tolist()
         if transaction_type == SELL:
             for x in infoMap[name][transaction_type]:
@@ -201,7 +205,8 @@ def shareProfitLoss_update_data(data):
             rowData[name][ShareProfitLoss_constants.CURRENT_INVESTMENT] = currentInvestment
 
     for share_name, share_details in rowData.items():
-        actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(share_details[ShareProfitLoss_constants.DATE], DATE_FORMAT), share_name)
+        actualStockDetails = utils.get_prizing_details_yfinance(datetime.now(), share_name) 
+        # actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(share_details[ShareProfitLoss_constants.DATE], DATE_FORMAT), share_name)
         # actualStockDetails = utils.get_prizing_details_alphaVintage(
         #     share_name, GLOBAL_QUOTE)
         closing_price = 0
@@ -297,6 +302,148 @@ def dailyProfitLoss_update_data(data):
         df = pd.concat([df, data_row.to_frame().T], ignore_index=True)
     return df
 
+def is_long_term(buy_date, sell_date):
+    buy_date = datetime.strptime(buy_date, DATE_FORMAT)
+    sell_date = datetime.strptime(sell_date, DATE_FORMAT)
+    
+    # Calculate the difference in days
+    delta_days = (sell_date - buy_date).days
+    
+    # Check if the difference is 365 days or more
+    return delta_days >= 365
+
+def taxation_update_data(data):
+    extraCols = [TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
+                 TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
+    data = utils.initialize_data(data, extraCols=extraCols)
+    grouped_data = data.groupby(
+        [TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE])
+
+    infoMap = {}
+    rowData = {}
+    intraMap = {}
+    global_buy_data = {}
+    global_sell_data = {}
+   
+    # Added the condition to remove key,value pairs created due to class itself.
+    constants_dict = {key: value for key, value in vars(Taxation_constants).items(
+    ) if (isinstance(value, str) and not value.startswith('python'))}    
+
+    df = pd.DataFrame(columns=list(constants_dict.values()))
+    
+    # Firstly find the intraday transactions and the profit on those transactions
+    for (transaction_type, name, date), group in grouped_data:
+        if name not in infoMap:
+            intraMap[name] = {}
+            infoMap[name] = {}
+            rowData[name] = {}
+        if date not in infoMap[name]:
+            infoMap[name][date] = {}
+            intraMap[name][date] = 0
+            rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
+        if transaction_type not in infoMap[name][date]:
+            infoMap[name][date][transaction_type] = group.values.tolist()
+            if transaction_type == BUY:
+                if name not in global_buy_data:
+                    global_buy_data[name] = []
+                for x in infoMap[name][date][BUY]:
+                    global_buy_data[name].append([x[0], x[3], x[7]])
+            else:
+                if name not in global_sell_data:
+                    global_sell_data[name] = []
+                for x in infoMap[name][date][SELL]:
+                    global_sell_data[name].append([x[0], abs(x[3]), abs(x[7])])
+                
+        if transaction_type == SELL:
+            buyData = []
+            sellData = []
+            
+            if BUY in infoMap[name][date]:
+                # X --> Date, Name, Price, Quantity, Net Amount, Transaction Type, STT, Final Amount
+                for x in infoMap[name][date][BUY]:
+                    buyData.append([x[3], x[7]])
+                for x in infoMap[name][date][transaction_type]:
+                    sellData.append([abs(x[3]), abs(x[7])])
+            
+                i,j = 0,0
+                while i < len(buyData) and j < len(sellData):
+                    buyCnt = buyData[i][0]
+                    sellCnt = sellData[j][0]
+                    if buyCnt >= sellCnt:
+                        rowData[name][Taxation_constants.INCOME_TAX] += sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                        intraMap[name][date] += sellCnt
+                        buyData[i][0] -= sellCnt
+                        sellData[j][0] = 0
+                        j += 1
+                    else:
+                        rowData[name][Taxation_constants.INCOME_TAX] += buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                        intraMap[name][date] += buyCnt
+                        sellData[j][0] -= buyCnt
+                        buyData[i][0] = 0
+                        i += 1
+                temp = intraMap[name][date]
+                intraMap[name][date] = [temp, temp]
+                  
+    # writing algorithm to find the STCG AND LTCG
+    for name in infoMap.keys():
+        # Firstly I am reducing the intraday things, 
+        i,j = 0, 0
+        while i < len(global_buy_data[name]):
+            buyDetails = global_buy_data[name][i]
+            if buyDetails[0] in intraMap[name]:
+                tempval = min(buyDetails[1], intraMap[name][buyDetails[0]][0])
+                buyDetails[2] = (buyDetails[1] - tempval) * (buyDetails[2]/buyDetails[1])
+                buyDetails[1] -= tempval
+                global_buy_data[name][i] = buyDetails
+                intraMap[name][buyDetails[0]][0] -= tempval
+            i += 1
+        while j < len(global_sell_data[name]):
+            sellDetails = global_sell_data[name][j]
+            if sellDetails[0] in intraMap[name]:
+                tempval = min(sellDetails[1], intraMap[name][sellDetails[0]][1])
+                sellDetails[2] = (sellDetails[1] - tempval) * (sellDetails[2]/ sellDetails[1])
+                sellDetails[1] -= tempval
+                global_sell_data[name][j] = sellDetails
+                intraMap[name][sellDetails[0]][1] -= tempval
+            j += 1
+            
+        # Now I will iterate again to find the LTCG and STCG for those stocks
+        i,j = 0, 0
+        while i < len(global_buy_data[name]) and j < len(global_sell_data[name]):
+            buyDetails = global_buy_data[name][i]
+            sellDetails = global_sell_data[name][j]
+            
+            tempval = min(buyDetails[1], sellDetails[1])
+            if is_long_term(buyDetails[0], sellDetails[0]) and tempval > 0:
+                rowData[name][Taxation_constants.LTCG] += (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+            elif tempval > 0:
+                rowData[name][Taxation_constants.STCG] += (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+            buyDetails[2] = (buyDetails[1] - tempval) * (buyDetails[2]/buyDetails[1])
+            buyDetails[1] -= tempval
+            global_buy_data[name][i] = buyDetails
+            sellDetails[2] = (sellDetails[1] - tempval) * (sellDetails[2]/sellDetails[1])
+            sellDetails[1] -= tempval
+            global_sell_data[name][j] = sellDetails
+            if buyDetails[1] == 0:
+                i += 1
+            if sellDetails[1] == 0:
+                j += 1
+        
+        # The Assumption is that both i and j leave at the same time.
+                
+            
+            
+    # Finally forming the answer
+    for name, details in rowData.items():
+        new_row = pd.Series({
+            Taxation_constants.DATE: details[Taxation_constants.Date],
+            Taxation_constants.Name: name,
+            Taxation_constants.LTCG: details[Taxation_constants.LTCG],
+            Taxation_constants.STCG: details[Taxation_constants.STCG],
+            Taxation_constants.INCOME_TAX: details[Taxation_constants.INCOME_TAX],
+        })
+        df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
+    return df    
 
 # Functions for Google sheets & Excel
 
@@ -316,8 +463,6 @@ def update_excel(sheet_name, data, formatting_function=None):
 
 
 # Main Program
-
-
 if __name__ == "__main__":
 
     # Handling User Inputs
@@ -331,6 +476,8 @@ if __name__ == "__main__":
     input_data = pd.read_csv(input_file)
     input_data = utils.format_input_data(input_data)
     spreadsheet, sheet_names, raw_data = get_sheets_and_data()
+    print(raw_data)
+    print(input_data)
     
     # Checking for Existing Data
     data_already_exists(raw_data, input_data)
@@ -340,6 +487,7 @@ if __name__ == "__main__":
     transDetails_data = transDetails_update_data(raw_data.copy(deep=True))
     shareProfitLoss_data = shareProfitLoss_update_data(transDetails_data.copy(deep=True))
     dailyProfitLoss_data = dailyProfitLoss_update_data(transDetails_data.copy(deep=True))
+    taxation_data = taxation_update_data(transDetails_data.copy(deep=True))
 
     # Handling the formatting for Google  Sheets & Excel
     if typ == 'sheets':
@@ -347,9 +495,11 @@ if __name__ == "__main__":
         update_sheet(sheet_names[1], transDetails_data, utils.transDetails_formatting_sheets)
         update_sheet(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_sheets)
         update_sheet(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_sheets)
+        update_sheet(sheet_names[4], taxation_data, utils.taxation_formatting_sheets)
     else:
         update_excel(sheet_names[0], raw_data)
         update_excel(sheet_names[1], transDetails_data, utils.transDetails_formatting_excel)
         update_excel(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_excel)
         update_excel(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_excel)
+        update_excel(sheet_names[4], taxation_data, utils.taxation_formatting_excel)
 

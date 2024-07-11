@@ -98,6 +98,10 @@ def dailyProfitLoss_formatting_sheets(spreadsheet, sheet):
     if len(requests) > 0:
         spreadsheet.batch_update({"requests": requests})
 
+def taxation_formatting_sheets(spreadsheet, sheet):
+    sheet.get_all_values()
+
+
 
 # Functions Specific To Excel
 
@@ -175,6 +179,9 @@ def dailyProfitLoss_formatting_excel(sheet):
             else :
                 for cell in row:
                     cell.fill = redFill
+                    
+def taxation_formatting_excel(sheet):
+    pass
 
 
 # Functions Specific To Data
@@ -350,7 +357,7 @@ def calculate_dp_charges(row, dp_data):
     return 0
 
 def calculate_brokerage(row):
-    if row[TransDetails_constants.TRANSACTION_TYPE] == SELL and row[TransDetails_constants.INTRADAY_COUNT] > 0:
+    if row[TransDetails_constants.INTRADAY_COUNT] > 0:
         return min(((row[TransDetails_constants.NET_AMOUNT] * row[TransDetails_constants.INTRADAY_COUNT])/row[TransDetails_constants.QUANTITY]) * 0.0003, 20)
     # val = min(data[TransDetails_constants.NET_AMOUNT] * 0.0003, 20)
     return 0
@@ -490,7 +497,7 @@ def get_prizing_details_yfinance(date, name):
             print("Encountered excpetion using yfinance API: ", e)
     return output
 
-def get_prizing_details_alphaVintage(stock_name, function):
+def get_prizing_details_alphaVantage(stock_name, function):
     STOCK_API_KEY = os.getenv('STOCK_API_KEY')
     url = f'https://www.alphavantage.co/query?function={function}&symbol={stock_name}&apikey={STOCK_API_KEY}&outputsize=full'
     output = []
