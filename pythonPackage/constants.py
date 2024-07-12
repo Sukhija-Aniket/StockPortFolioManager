@@ -63,11 +63,11 @@ class DailyProfitLoss_constants:
     DAILY_SPENDINGS = 'Daily Spendings'
 
 class Taxation_constants:
-    Date = 'Date'
-    Name = 'Name'
+    DATE = 'Date'
+    NAME = 'Name'
     LTCG = 'LTCG'
     STCG = 'STCG'
-    INCOME_TAX = 'Income Tax'
+    INTRADAY_INCOME = 'Intraday Income'
 
 # Extra Constants
 BUY = 'BUY'

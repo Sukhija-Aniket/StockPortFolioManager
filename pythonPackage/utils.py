@@ -99,7 +99,17 @@ def dailyProfitLoss_formatting_sheets(spreadsheet, sheet):
         spreadsheet.batch_update({"requests": requests})
 
 def taxation_formatting_sheets(spreadsheet, sheet):
-    sheet.get_all_values()
+    worksheet_data = sheet.get_all_values()
+    requests = []
+    for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
+        if (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) > 0:
+            background_color = (0.8, 0.9, 1)
+        elif (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) < 0:
+            background_color = (1, 0.8, 0.8)
+        format_request = get_backgroundColor_formatting_request(sheet,row_number, row_data, background_color)
+        requests.append(format_request)
+    if len(requests) > 0:
+        spreadsheet.batch_update({"requests": requests})
 
 
 
@@ -181,6 +191,19 @@ def dailyProfitLoss_formatting_excel(sheet):
                     cell.fill = redFill
                     
 def taxation_formatting_excel(sheet):
+    cell_range = CELL_RANGE
+    redFill = openpyxl.styles.PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+    blueFill = openpyxl.styles.PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
+    for row in sheet[cell_range]:
+        if row[0].value is None or row[0].value == '':
+            break
+        if row[9].value != '':
+            if float(row[2].value) + float(row[3].value) + float(row[4].value) > 0.0:
+                for cell in row:
+                    cell.fill = blueFill
+            elif float(row[2].value) + float(row[3].value) + float(row[4].value) < 0.0:
+                for cell in row:
+                    cell.fill = redFill
     pass
 
 
@@ -476,6 +499,15 @@ def get_spl_row():
         ShareProfitLoss_constants.DATE: DEFAULT_DATE,
         ShareProfitLoss_constants.CURRENT_INVESTMENT: 0,
         ShareProfitLoss_constants.TOTAL_INVESTMENT: 0,
+    }
+    return context
+
+def get_taxation_row():
+    context = {
+        Taxation_constants.DATE: DEFAULT_DATE,
+        Taxation_constants.LTCG: 0.0,
+        Taxation_constants.STCG: 0.0,
+        Taxation_constants.INTRADAY_INCOME: 0.0,
     }
     return context
 

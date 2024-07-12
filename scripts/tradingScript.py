@@ -336,13 +336,14 @@ def taxation_update_data(data):
         if name not in infoMap:
             intraMap[name] = {}
             infoMap[name] = {}
-            rowData[name] = {}
+            rowData[name] = utils.get_taxation_row()
         if date not in infoMap[name]:
             infoMap[name][date] = {}
-            intraMap[name][date] = 0
+            # intraMap[name][date] = 0 # this needs to be written done, correction made.
             rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
         if transaction_type not in infoMap[name][date]:
             infoMap[name][date][transaction_type] = group.values.tolist()
+            # X --> Date, Name, Price, Quantity, Net Amount, Transaction Type, STT, Final Amount
             if transaction_type == BUY:
                 if name not in global_buy_data:
                     global_buy_data[name] = []
@@ -359,6 +360,7 @@ def taxation_update_data(data):
             sellData = []
             
             if BUY in infoMap[name][date]:
+                intraMap[name][date] = 0
                 # X --> Date, Name, Price, Quantity, Net Amount, Transaction Type, STT, Final Amount
                 for x in infoMap[name][date][BUY]:
                     buyData.append([x[3], x[7]])
@@ -370,15 +372,20 @@ def taxation_update_data(data):
                     buyCnt = buyData[i][0]
                     sellCnt = sellData[j][0]
                     if buyCnt >= sellCnt:
-                        rowData[name][Taxation_constants.INCOME_TAX] += sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                        # used - (buy - sell)
+                        rowData[name][Taxation_constants.INTRADAY_INCOME] -= sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                         intraMap[name][date] += sellCnt
+                        buyData[i][1] = (buyData[i][0] - sellCnt) * (buyData[i][1]/buyData[i][0])
                         buyData[i][0] -= sellCnt
+                        sellData[j][1] = 0
                         sellData[j][0] = 0
                         j += 1
                     else:
-                        rowData[name][Taxation_constants.INCOME_TAX] += buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                        rowData[name][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                         intraMap[name][date] += buyCnt
+                        sellData[j][1] = (sellData[j][0] - buyCnt) * (sellData[j][1]/sellData[j][0])
                         sellData[j][0] -= buyCnt
+                        buyData[i][1] = 0
                         buyData[i][0] = 0
                         i += 1
                 temp = intraMap[name][date]
@@ -397,7 +404,7 @@ def taxation_update_data(data):
                 global_buy_data[name][i] = buyDetails
                 intraMap[name][buyDetails[0]][0] -= tempval
             i += 1
-        while j < len(global_sell_data[name]):
+        while name in global_sell_data and j < len(global_sell_data[name]):
             sellDetails = global_sell_data[name][j]
             if sellDetails[0] in intraMap[name]:
                 tempval = min(sellDetails[1], intraMap[name][sellDetails[0]][1])
@@ -409,15 +416,24 @@ def taxation_update_data(data):
             
         # Now I will iterate again to find the LTCG and STCG for those stocks
         i,j = 0, 0
-        while i < len(global_buy_data[name]) and j < len(global_sell_data[name]):
+        while i < len(global_buy_data[name]) and name in global_sell_data and j < len(global_sell_data[name]):
             buyDetails = global_buy_data[name][i]
             sellDetails = global_sell_data[name][j]
             
             tempval = min(buyDetails[1], sellDetails[1])
-            if is_long_term(buyDetails[0], sellDetails[0]) and tempval > 0:
-                rowData[name][Taxation_constants.LTCG] += (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
-            elif tempval > 0:
-                rowData[name][Taxation_constants.STCG] += (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+            if tempval == 0:
+                if buyDetails[1] == 0:
+                    i += 1
+                if sellDetails[1] == 0:
+                    j += 1
+                continue
+            # Assumption no details are zero initially
+            if is_long_term(buyDetails[0], sellDetails[0]):
+                # used - (buy - sell)
+                rowData[name][Taxation_constants.LTCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+            else:
+                # used - (buy - sell)
+                rowData[name][Taxation_constants.STCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
             buyDetails[2] = (buyDetails[1] - tempval) * (buyDetails[2]/buyDetails[1])
             buyDetails[1] -= tempval
             global_buy_data[name][i] = buyDetails
@@ -436,11 +452,11 @@ def taxation_update_data(data):
     # Finally forming the answer
     for name, details in rowData.items():
         new_row = pd.Series({
-            Taxation_constants.DATE: details[Taxation_constants.Date],
-            Taxation_constants.Name: name,
+            Taxation_constants.DATE: details[Taxation_constants.DATE],
+            Taxation_constants.NAME: name,
             Taxation_constants.LTCG: details[Taxation_constants.LTCG],
             Taxation_constants.STCG: details[Taxation_constants.STCG],
-            Taxation_constants.INCOME_TAX: details[Taxation_constants.INCOME_TAX],
+            Taxation_constants.INTRADAY_INCOME: details[Taxation_constants.INTRADAY_INCOME],
         })
         df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
     return df    
@@ -470,7 +486,7 @@ if __name__ == "__main__":
     input_file = utils.get_valid_path(input_file)
 
     # Not allowing the script to execute twice a day.
-    # script_already_executed()
+    # script_already_executed() # A better function is data_already_exists
 
     # Gathering Information
     input_data = pd.read_csv(input_file)
