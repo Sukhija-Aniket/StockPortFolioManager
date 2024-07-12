@@ -1,11 +1,26 @@
-class Orders_constants:
-    DATE="Time"
-    TYPE = "Type"
-    NAME = "Instrument"
-    PRODUCT = "Product"
-    QUANTITY = "Qty."
-    PRICE = "Avg. price"
-    STATUS = "Status"
+class Order_constants:
+    DATE = 'Time'
+    TYPE = 'Type'
+    NAME = 'Instrument'
+    PRODUCT = 'Product'
+    QUANTITY = 'Qty.'
+    PRICE = 'Avg. price'
+    STATUS = 'Status'
+    
+class Data_constants:
+    NAME = 'symbol'
+    ISIN = 'isin'
+    DATE = 'trade_date'
+    STOCK_EXCHANGE = 'exchange'
+    SEGMENT = 'segment'
+    SERIES = 'series'
+    TYPE = 'trade_type'
+    AUCTION = 'auction'
+    QUANTITY = 'quantity'
+    PRICE = 'price'
+    TRADE_ID = 'trade_id'
+    ORDER_ID = 'order_id'
+    EXECUTION_TIME = 'order_execution_time'
 
 class Raw_constants:
     DATE = 'Date'
@@ -76,7 +91,8 @@ DEFAULT_DATE = '01/01/2020'
 BSE = 'BSE'
 NSE = 'NSE'
 DATE_FORMAT = '%m/%d/%Y'
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+ORDER_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATA_TIME_FORMAT = "%Y-%m-%d"
 GLOBAL_QUOTE = 'GLOBAL_QUOTE'
 COMPLETE = 'COMPLETE'
 DOT_NS = '.NS'

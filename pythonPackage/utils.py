@@ -5,6 +5,80 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from pythonPackage.constants import *
 
+# Common Utility Functions
+def update_env_file(key, value, env_file):
+    with open(env_file, 'r') as file:
+        lines = file.readlines()    
+
+    updated_lines = []
+    for line in lines:
+        if line.strip().startswith(f"{key}="):
+            line = f"{key}={value}\n"
+        updated_lines.append(line)
+
+    with open(env_file, 'w') as file:
+        file.writelines(updated_lines)
+
+def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
+    input_file = None
+    key = 'EXCEL_FILE_NAME'
+    if len(args) > 3:
+        value = args
+    if len(args) > 2:
+        typ = args[2].lower()
+        value = ''
+        if typ == 'sheets':
+            key = 'SPREADSHEET_ID'
+        input_file = args[1]
+    else:
+        if len(args) > 1:
+            input_file = args[1]
+        else:
+            input_file = input("Please enter the absolute path of the file downloaded from Zerodha: ")
+        print("\nPlease select 'excel' or 'sheets, leave empty to use excel as default")
+        typ = input("Enter your choice: ")
+        typ = typ.lower()
+        if (typ == 'excel' or typ == ''):
+            print(
+                f"{excel_file_name} is the default file, enter name below if you wish to change it, leave empty otherwise")
+            value = input("Enter your choice: ")
+
+        elif (typ== 'sheets'):
+            print(f"{spreadsheet_id} is the default google sheet, enter spreadsheet_id below if you wish to change it, leave empty otherwise")
+            value = input("Enter your choice: ")
+            key = 'SPREADSHEET_ID'
+
+    if value is not None and value != '':
+        update_env_file(key, value, env_file)
+
+    return input_file, typ
+
+def get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file):
+    if typ == 'sheets':
+        spreadsheet = authenticate_and_get_sheets(
+            credentials_file, spreadsheet_id)
+        worksheets = spreadsheet.worksheets()
+        sheet_names = [worksheet.title for worksheet in worksheets]
+        raw_data = read_data_from_sheets(spreadsheet, sheet_names[0])
+    else:
+        spreadsheet = openpyxl.load_workbook(spreadsheet_file)
+        sheet_names = spreadsheet.sheetnames
+        raw_data = read_data_from_excel(spreadsheet, sheet_names[0])
+
+    return spreadsheet, sheet_names, raw_data
+
+def data_already_exists(raw_data, input_data):
+    input_data.reset_index(drop=True, inplace=True)
+    if not raw_data.empty:
+        is_duplicate = raw_data[
+            (raw_data[Raw_constants.DATE] == input_data[Raw_constants.DATE][0]) &
+            (raw_data[Raw_constants.NAME] == input_data[Raw_constants.NAME][0])
+        ].shape[0] > 0
+
+        if is_duplicate:
+            print("Orders Data Already Exists in the file, Exiting...")
+            exit()
+
 # Functions Specific To Sheets
 
 def authenticate_and_get_sheets(credentials_file, spreadsheet_id):
@@ -227,25 +301,55 @@ def initialize_data(data, extraCols=[], sortList=[]):
         pass
     return data
 
+"""
+Input Format:
+    input_data: "Time","Type","Instrument","Product","Qty.","Avg. price","Status"
+
+Output Format:
+    df: Date, Name, Price, Quantity, Net Amount, Stock Exchange
+"""
 def format_input_data(input_data):
     input_data.drop(
-        input_data[input_data[Orders_constants.STATUS] != COMPLETE].index, inplace=True)
-    input_data[Orders_constants.QUANTITY] = input_data.apply(
-        get_quantity, axis=1)
+        input_data[input_data[Order_constants.STATUS] != COMPLETE].index, inplace=True)
+    input_data[Order_constants.QUANTITY] = input_data.apply(
+        get_order_quantity, axis=1)
 
     constants_dict = {key: value for key, value in vars(Raw_constants).items(
     ) if (isinstance(value, str) and not value.startswith('python'))}
     df = pd.DataFrame(columns=list(constants_dict.values()))
 
-    df[Raw_constants.DATE] = input_data[Orders_constants.DATE].apply(
-        lambda x: get_date(x))
-    df[Raw_constants.NAME] = input_data[Orders_constants.NAME]
-    df[Raw_constants.PRICE] = input_data[Orders_constants.PRICE]
-    df[Raw_constants.QUANTITY] = input_data[Orders_constants.QUANTITY]
+    df[Raw_constants.DATE] = input_data[Order_constants.DATE].apply(
+        lambda x: get_order_date(x))
+    df[Raw_constants.NAME] = input_data[Order_constants.NAME]
+    df[Raw_constants.PRICE] = input_data[Order_constants.PRICE]
+    df[Raw_constants.QUANTITY] = input_data[Order_constants.QUANTITY]
     df[Raw_constants.NET_AMOUNT] = df.apply(get_net_amount, axis=1)
     df[Raw_constants.STOCK_EXCHANGE] = BSE
     return df
 
+"""
+Input Format: 
+    input_data: symbol, isin, trade_date, exchange, segment, series, trade_type, auction, quantity, price, trade_id, order_id, order_execution_time
+
+Output Format:
+    df: Date, Name, Price, Quantity, Net Amount, Stock Exchange 
+"""
+def format_add_data(input_data):
+    input_data[Data_constants.QUANTITY] = input_data.apply(
+        get_data_quantity, axis=1)
+    
+    constants_dict = {key: value for key, value in vars(Raw_constants).items(
+    ) if (isinstance(value, str) and not value.startswith('python'))}
+    df = pd.DataFrame(columns=list(constants_dict.values()))
+    
+    df[Raw_constants.DATE] = input_data[Data_constants.DATE].apply(
+        lambda x: get_data_date(x))
+    df[Raw_constants.NAME] = input_data[Data_constants.NAME]
+    df[Raw_constants.PRICE] = input_data[Data_constants.PRICE]
+    df[Raw_constants.QUANTITY] = input_data[Data_constants.QUANTITY]
+    df[Raw_constants.NET_AMOUNT] = df.apply(get_net_amount, axis=1)
+    df[Raw_constants.STOCK_EXCHANGE] = input_data[Data_constants.STOCK_EXCHANGE]
+    return df
 
 # Utility Functions
 
@@ -256,17 +360,31 @@ def get_valid_path(path):
         path = get_valid_path(path)   
     return path
 
-def get_quantity(row):
-    quantity = row[Orders_constants.QUANTITY]
+def get_order_quantity(row):
+    quantity = row[Order_constants.QUANTITY]
     val = quantity.split('/')[0]
-    if row[Orders_constants.TYPE] == SELL:
+    if row[Order_constants.TYPE] == SELL:
         val = '-' + val
     return val
 
-def get_date(date):
-    date_obj = datetime.strptime(date, TIME_FORMAT)
+def get_data_quantity(row):
+    quantity = row[Data_constants.QUANTITY]
+    val = quantity.split('.')[0]
+    if str(row[Data_constants.TYPE]).upper() == SELL:
+        val = '-' + val
+    return val
+
+def get_order_date(date):
+    date_obj = datetime.strptime(date, ORDER_TIME_FORMAT)
     date_str = datetime.strftime(date_obj, DATE_FORMAT)
     return date_str
+
+def get_data_date(date):
+    date_obj = datetime.strptime(date, DATA_TIME_FORMAT)
+    date_str = datetime.strftime(date_obj, DATE_FORMAT)
+    return date_str
+
+    
 
 def get_net_amount(row):
     val = int(row[Raw_constants.QUANTITY]) * float(row[Raw_constants.PRICE])
@@ -547,3 +665,42 @@ def get_prizing_details_alphaVantage(stock_name, function):
         print(f"Unable to get Share pricing details using Alpha-Vintage, Fallback to Yfinance for stock {stock_name} API: {e}")
         data = get_prizing_details_yfinance(datetime.now() - timedelta(days=1), stock_name)
         return data
+
+
+
+# Functions for Google sheets & Excel
+def get_formatting_funcs(typ):
+    if typ == 'sheets':
+        return [None, transDetails_formatting_sheets, shareProfitLoss_formatting_sheets, dailyProfitLoss_formatting_sheets, taxation_formatting_sheets]
+    else:
+        return [None, transDetails_formatting_excel, shareProfitLoss_formatting_excel, dailyProfitLoss_formatting_excel, taxation_formatting_excel]
+
+def get_updating_func(typ):
+    if typ == 'sheets':
+        return update_sheet
+    else:
+        return update_excel
+
+def update_sheet(spreadsheet, sheet_name, data, formatting_function=None):
+    sheet = initialize_sheets(spreadsheet, sheet_name)
+    display_and_format_sheets(sheet, data)
+    if formatting_function is not None:
+        formatting_function(spreadsheet, sheet)
+    print(f"{sheet_name} updated Successfully!")
+
+def update_excel(spreadsheet, sheet_name, data, formatting_function=None):
+    sheet = initialize_excel(spreadsheet, sheet_name)
+    display_and_format_excel(sheet, data)
+    if formatting_function is not None:
+        formatting_function(spreadsheet, sheet)
+    print(f"{sheet_name} updated Successfully!")
+    
+def is_long_term(buy_date, sell_date):
+    buy_date = datetime.strptime(buy_date, DATE_FORMAT)
+    sell_date = datetime.strptime(sell_date, DATE_FORMAT)
+    
+    # Calculate the difference in days
+    delta_days = (sell_date - buy_date).days
+    
+    # Check if the difference is 365 days or more
+    return delta_days >= 365

@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import sys
 from datetime import datetime
-import openpyxl
 
 scripts_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(scripts_directory)
@@ -16,98 +15,23 @@ from dotenv import load_dotenv
 env_file = os.path.join(parent_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
-spreadsheet_id = os.getenv('SPREADSHEET_ID')
-excel_file_name = os.getenv('EXCEL_FILE_NAME')
-spreadsheet_file = os.path.join(parent_directory, 'assets', excel_file_name)
 api_key_file_name = 'tradingprojects-apiKey.json'
+excel_file_name = os.getenv('EXCEL_FILE_NAME')
+spreadsheet_id = os.getenv('SPREADSHEET_ID')
+spreadsheet_file = os.path.join(parent_directory, 'assets', excel_file_name)
 credentials_file = os.path.join(parent_directory, 'secrets', api_key_file_name)
 
-
-# Utility Functions
-
-def update_env_file(key, value):
-    with open(env_file, 'r') as file:
-        lines = file.readlines()    
-
-    updated_lines = []
-    for line in lines:
-        if line.strip().startswith(f"{key}="):
-            line = f"{key}={value}\n"
-        updated_lines.append(line)
-
-    with open(env_file, 'w') as file:
-        file.writelines(updated_lines)
-
-def get_args_and_input():
-    input_file = None
-    key = 'EXCEL_FILE_NAME'
-    if len(sys.argv) > 3:
-        value = sys.argv[3]
-    if len(sys.argv) > 2:
-        typ = sys.argv[2].lower()
-        value = ''
-        if typ == 'sheets':
-            key = 'SPREADSHEET_ID'
-        input_file = sys.argv[1]
-    else:
-        if len(sys.argv) > 1:
-            input_file = sys.argv[1]
-        else:
-            input_file = input("Please enter the absolute path of the file downloaded from Zerodha: ")
-        print("\nPlease select 'excel' or 'sheets, leave empty to use excel as default")
-        typ = input("Enter your choice: ")
-        typ = typ.lower()
-        if (typ == 'excel' or typ == ''):
-            print(
-                f"{excel_file_name} is the default file, enter name below if you wish to change it, leave empty otherwise")
-            value = input("Enter your choice: ")
-
-        elif (typ== 'sheets'):
-            print(f"{spreadsheet_id} is the default google sheet, enter spreadsheet_id below if you wish to change it, leave empty otherwise")
-            value = input("Enter your choice: ")
-            key = 'SPREADSHEET_ID'
-
-    if value is not None and value != '':
-        update_env_file(key, value)
-
-    return input_file, typ
-
-def data_already_exists(raw_data, input_data):
-    input_data.reset_index(drop=True, inplace=True)
-    print(input_data)
-    if not raw_data.empty:
-        is_duplicate = raw_data[
-            (raw_data[Raw_constants.DATE] == input_data[Raw_constants.DATE][0]) &
-            (raw_data[Raw_constants.NAME] == input_data[Raw_constants.NAME][0])
-        ].shape[0] > 0
-
-        if is_duplicate:
-            print("Orders Data Already Exists in the file, Exiting...")
-            exit()
+# Required Utility Functions
 
 def script_already_executed():
     last_execution_date = os.getenv(f'LAST_EXECUTION_DATE_{typ.upper()}')
     if (last_execution_date == datetime.now().strftime(DATE_FORMAT)):
         print("The script has been already been executed today, Exiting...")
         exit()
-    update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date)
-
-def get_sheets_and_data():
-    if typ == 'sheets':
-        spreadsheet = utils.authenticate_and_get_sheets(
-            credentials_file, spreadsheet_id)
-        worksheets = spreadsheet.worksheets()
-        sheet_names = [worksheet.title for worksheet in worksheets]
-        raw_data = utils.read_data_from_sheets(spreadsheet, sheet_names[0])
-    else:
-        spreadsheet = openpyxl.load_workbook(spreadsheet_file)
-        sheet_names = spreadsheet.sheetnames
-        raw_data = utils.read_data_from_excel(spreadsheet, sheet_names[0])
-
-    return spreadsheet, sheet_names, raw_data
+    utils.update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date, env_file)
 
 
-# Functions for Data
+# Functions for Handling Data
 
 def transDetails_update_data(data):
     # Considering only IntraDay and Delivery and not FNO
@@ -302,16 +226,6 @@ def dailyProfitLoss_update_data(data):
         df = pd.concat([df, data_row.to_frame().T], ignore_index=True)
     return df
 
-def is_long_term(buy_date, sell_date):
-    buy_date = datetime.strptime(buy_date, DATE_FORMAT)
-    sell_date = datetime.strptime(sell_date, DATE_FORMAT)
-    
-    # Calculate the difference in days
-    delta_days = (sell_date - buy_date).days
-    
-    # Check if the difference is 365 days or more
-    return delta_days >= 365
-
 def taxation_update_data(data):
     extraCols = [TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
@@ -428,7 +342,7 @@ def taxation_update_data(data):
                     j += 1
                 continue
             # Assumption no details are zero initially
-            if is_long_term(buyDetails[0], sellDetails[0]):
+            if utils.is_long_term(buyDetails[0], sellDetails[0]):
                 # used - (buy - sell)
                 rowData[name][Taxation_constants.LTCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
             else:
@@ -446,9 +360,7 @@ def taxation_update_data(data):
                 j += 1
         
         # The Assumption is that both i and j leave at the same time.
-                
-            
-            
+                 
     # Finally forming the answer
     for name, details in rowData.items():
         new_row = pd.Series({
@@ -461,61 +373,39 @@ def taxation_update_data(data):
         df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
     return df    
 
-# Functions for Google sheets & Excel
-
-def update_sheet(sheet_name, data, formatting_function=None):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    if formatting_function is not None:
-        formatting_function(spreadsheet, sheet)
-    print(f"{sheet_name} updated Successfully!")
-
-def update_excel(sheet_name, data, formatting_function=None):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    if formatting_function is not None:
-        formatting_function(spreadsheet, sheet)
-    print(f"{sheet_name} updated Successfully!")
-
-
 # Main Program
 if __name__ == "__main__":
-
-    # Handling User Inputs
-    input_file, typ = get_args_and_input()
+    
+    # Taking Required User Inputs
+    input_file, typ = utils.get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
     input_file = utils.get_valid_path(input_file)
 
-    # Not allowing the script to execute twice a day.
-    # script_already_executed() # A better function is data_already_exists
+    '''
+    Depreciated: Not allowing the script to execute twice a day, replaced by
+    a better function 'data_already_exists'.
+    # script_already_executed() 
+    '''
 
-    # Gathering Information
+    # Handling User data
     input_data = pd.read_csv(input_file)
     input_data = utils.format_input_data(input_data)
-    spreadsheet, sheet_names, raw_data = get_sheets_and_data()
-    print(raw_data)
-    print(input_data)
-    
-    # Checking for Existing Data
-    data_already_exists(raw_data, input_data)
+    spreadsheet, sheet_names, raw_data = utils.get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file)
+    utils.data_already_exists(raw_data, input_data) 
 
-    # Handling the data
+    
+    # Preparing  data for all the sheets
     raw_data = pd.concat([raw_data, input_data], ignore_index=True)
     transDetails_data = transDetails_update_data(raw_data.copy(deep=True))
     shareProfitLoss_data = shareProfitLoss_update_data(transDetails_data.copy(deep=True))
     dailyProfitLoss_data = dailyProfitLoss_update_data(transDetails_data.copy(deep=True))
     taxation_data = taxation_update_data(transDetails_data.copy(deep=True))
+    data_items = [raw_data, transDetails_data, shareProfitLoss_data, dailyProfitLoss_data, taxation_data]
 
-    # Handling the formatting for Google  Sheets & Excel
-    if typ == 'sheets':
-        update_sheet(sheet_names[0], raw_data)
-        update_sheet(sheet_names[1], transDetails_data, utils.transDetails_formatting_sheets)
-        update_sheet(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_sheets)
-        update_sheet(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_sheets)
-        update_sheet(sheet_names[4], taxation_data, utils.taxation_formatting_sheets)
-    else:
-        update_excel(sheet_names[0], raw_data)
-        update_excel(sheet_names[1], transDetails_data, utils.transDetails_formatting_excel)
-        update_excel(sheet_names[2], shareProfitLoss_data, utils.shareProfitLoss_formatting_excel)
-        update_excel(sheet_names[3], dailyProfitLoss_data, utils.dailyProfitLoss_formatting_excel)
-        update_excel(sheet_names[4], taxation_data, utils.taxation_formatting_excel)
+    # Handling the formatting and final updation
+    formatting_funcs = utils.get_formatting_funcs(typ)
+    updating_func = utils.get_updating_func(typ)
+    
+    for i in range(len(formatting_funcs)):
+        updating_func(spreadsheet, sheet_names[i], data_items[i], formatting_funcs[i])
+    
 
