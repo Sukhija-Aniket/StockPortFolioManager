@@ -1,2 +1,5 @@
-myenv
+tradingenv/
+backend/__pycache__
+instance/
 pythonPackage/__pycache__
+temp/

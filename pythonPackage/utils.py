@@ -2,11 +2,16 @@ import pandas as pd
 import openpyxl
 import gspread, requests, os
 import yfinance as yf
+import json
 from datetime import datetime, timedelta
 from pythonPackage.constants import *
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+
 
 # Common Utility Functions
 def update_env_file(key, value, env_file):
+    print("updating env file")
     with open(env_file, 'r') as file:
         lines = file.readlines()    
 
@@ -16,17 +21,24 @@ def update_env_file(key, value, env_file):
             line = f"{key}={value}\n"
         updated_lines.append(line)
 
+    print(updated_lines)
     with open(env_file, 'w') as file:
         file.writelines(updated_lines)
 
 def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
+    
     input_file = None
+    value = ''
     key = 'EXCEL_FILE_NAME'
+    credentials=None
+    print("Args length: ", len(args))
+    print("Args: ", args)
+    if len(args) > 4:
+        credentials = json.loads(args[4])       
     if len(args) > 3:
-        value = args
+        value = args[3]
     if len(args) > 2:
         typ = args[2].lower()
-        value = ''
         if typ == 'sheets':
             key = 'SPREADSHEET_ID'
         input_file = args[1]
@@ -48,15 +60,16 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
             value = input("Enter your choice: ")
             key = 'SPREADSHEET_ID'
 
+    print("going to update env file", value)
     if value is not None and value != '':
         update_env_file(key, value, env_file)
 
-    return input_file, typ
+    return input_file, typ, credentials
 
-def get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file):
+def get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials=None):
     if typ == 'sheets':
         spreadsheet = authenticate_and_get_sheets(
-            credentials_file, spreadsheet_id)
+            credentials_file, spreadsheet_id, credentials)
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
         raw_data = read_data_from_sheets(spreadsheet, sheet_names[0])
@@ -81,11 +94,30 @@ def data_already_exists(raw_data, input_data):
 
 # Functions Specific To Sheets
 
-def authenticate_and_get_sheets(credentials_file, spreadsheet_id):
-    gc = gspread.service_account(filename=credentials_file)
-    spreadsheet = gc.open_by_key(spreadsheet_id)
-    return spreadsheet
-
+def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=None):
+    print("Yet to enter")
+    if credentials is not None:
+        print("Entering here finally")
+        try:
+            credentials_obj = Credentials.from_authorized_user_info(credentials)
+            if credentials_obj and credentials_obj.expired and credentials_obj.refresh_token:
+                credentials_obj.refresh(Request())
+            else:
+                raise ValueError("OAuth Credentials are not available or invalid")
+            
+            gc = gspread.authorize(credentials_obj)
+            spreadsheet = gc.open_by_key(spreadsheet_id)
+            return spreadsheet
+        except Exception as e:
+            print(f"Unable to authorize spreadsheet {e}, exiting...")
+            exit()
+            
+    else:
+        gc = gspread.service_account(filename=credentials_file)
+        spreadsheet = gc.open_by_key(spreadsheet_id)
+        return spreadsheet
+    
+        
 def read_data_from_sheets(spreadsheet, sheet_name):
     sheet = spreadsheet.worksheet(sheet_name)
     data = sheet.get_all_values()
@@ -369,7 +401,7 @@ def get_order_quantity(row):
 
 def get_data_quantity(row):
     quantity = row[Data_constants.QUANTITY]
-    val = quantity.split('.')[0]
+    val = str(quantity).split('.')[0]
     if str(row[Data_constants.TYPE]).upper() == SELL:
         val = '-' + val
     return val

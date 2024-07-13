@@ -5,12 +5,14 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import os, sys
+import json
 from datetime import datetime
 from database import configure_db, User, Spreadsheet
 from flask_cors import CORS
+import subprocess
 
-scripts_directory = os.path.dirname(__file__)
-parent_directory = os.path.dirname(scripts_directory)
+parent_directory = os.path.dirname(os.path.dirname(__file__))
+scripts_directory = os.path.join(parent_directory, 'scripts')
 sys.path.append(parent_directory)
 
 from dotenv import load_dotenv
@@ -116,6 +118,29 @@ def oauth2callback():
     session['user'] = {'name': user.name, 'email': user.email, 'google_id': user.google_id, 'id': user.id}
     
     return redirect('http://localhost:3000/')
+
+@app.post('/add_data')
+def add_data():
+    url = request.form.get('spreadsheeturl')
+    files = request.files.getlist('files')
+    
+    messages = {}
+    for file in files:
+        file_path = os.path.join(parent_directory, f'temp/{file.filename}')
+        file.save(file_path)
+        # Run the add_data.py script with the file path and spreadsheet_id as arguments
+        process = subprocess.Popen(['python', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        if process.returncode != 0:
+            print(f"Error processing file {file.filename}: {stderr.decode()}")
+            messages[file.filename] = "Error processing file"
+        else:
+            messages[file.filename] = "Successfully Processed"
+            print(f'Successfully processed {file.filename}: {stdout.decode()}')
+    
+    return jsonify({"message": messages}), 200
 
 @app.post('/create_spreadsheet') # this is a post request with title
 def create_spreadsheet():

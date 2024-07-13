@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Container, Form, ListGroup, Row, Col, Table } from 'react-bootstrap';
+import { Button, Container, Form, Row, Col, Table } from 'react-bootstrap';
 import axios from 'axios';
+import FileUploader from './components/fileUploader';
 
 const App = () => {
   const [user, setUser] = useState(null);
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [newSpreadsheetTitle, setNewSpreadsheetTitle] = useState('');
-
+  const [isDisabled, setIsDisabled] = useState(true)
+  
   useEffect(() => {
     // Fetch user data if logged in
     const fetchUserData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/user_data', {withCredentials: true});
+        const res = await axios.get('http://localhost:5000/user_data', { withCredentials: true });
         console.log(res.data);
         setUser(res.data);
         fetchSpreadsheets();
@@ -20,13 +22,16 @@ const App = () => {
       }
     };
 
+    if (newSpreadsheetTitle.length > 0) setIsDisabled(false);
+    else setIsDisabled(true);
+
     fetchUserData();
-  }, []);
+  }, [newSpreadsheetTitle]);
 
   const fetchSpreadsheets = async () => {
     // Fetch existing spreadsheets
     try {
-      const res = await axios.get('http://localhost:5000/spreadsheets', {withCredentials: true});
+      const res = await axios.get('http://localhost:5000/spreadsheets', { withCredentials: true });
       console.log(res)
       setSpreadsheets(res.data);
     } catch (error) {
@@ -39,7 +44,7 @@ const App = () => {
     try {
       const res = await axios.post('http://localhost:5000/create_spreadsheet', {
         title: newSpreadsheetTitle
-      }, {withCredentials: true});
+      }, { withCredentials: true });
       console.log('Created spreadsheet:', res.data);
       fetchSpreadsheets(); // Refresh spreadsheet list after creation
       setNewSpreadsheetTitle(''); // Clear input field
@@ -64,8 +69,8 @@ const App = () => {
   return (
     <Container>
       {user && (
-         <div className="text-center py-3">
-           <div className="d-flex justify-content-end mb-3">
+        <div className="text-center py-3">
+          <div className="d-flex justify-content-end mb-3">
             <Button variant="outline-secondary" onClick={handleSignOut}>
               Sign Out
             </Button>
@@ -111,12 +116,17 @@ const App = () => {
                 />
               </Col>
               <Col xs="auto">
-                <Button variant="success" onClick={handleCreateSpreadsheet}>
+                <Button variant="success"  disabled={isDisabled} onClick={handleCreateSpreadsheet}>
                   Create Spreadsheet
                 </Button>
               </Col>
             </Row>
           </Form>
+
+          <hr />
+
+          <h3>Add Data to Spreadsheet</h3>
+          <FileUploader spreadsheets={spreadsheets}/>
         </div>
       )}
 
