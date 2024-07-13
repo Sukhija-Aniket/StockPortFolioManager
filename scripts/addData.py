@@ -42,9 +42,6 @@ if __name__ == "__main__":
     
     # Taking Required user inputs
     input_file, typ, credentials = utils.get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
-    if credentials is None:
-        print("Credentials are None")
-        exit()
     print("old spreadsheet id: ", spreadsheet_id)
     spreadsheet_id, excel_file_name, spreadsheet_file = update()
     print("new spreadsheet id: ", spreadsheet_id)

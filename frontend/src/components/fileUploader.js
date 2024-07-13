@@ -49,7 +49,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
       formData.append('spreadsheeturl', spreadsheeturl)
 
       try {
-        const res = await axios.post('http://localhost:5000/add_data',formData, {
+        const res = await axios.post('http://localhost:5000/add_data', formData, {
           withCredentials: true,
           headers: {
             'Content-Type':'multipart/form-data'

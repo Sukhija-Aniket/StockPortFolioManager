@@ -42,6 +42,8 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
         if typ == 'sheets':
             key = 'SPREADSHEET_ID'
         input_file = args[1]
+        if input_file == 'None':
+            input_file = None
     else:
         if len(args) > 1:
             input_file = args[1]
@@ -208,9 +210,9 @@ def taxation_formatting_sheets(spreadsheet, sheet):
     worksheet_data = sheet.get_all_values()
     requests = []
     for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-        if (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) > 0:
+        if (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) >= 0:
             background_color = (0.8, 0.9, 1)
-        elif (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) < 0:
+        else:
             background_color = (1, 0.8, 0.8)
         format_request = get_backgroundColor_formatting_request(sheet,row_number, row_data, background_color)
         requests.append(format_request)
@@ -386,6 +388,8 @@ def format_add_data(input_data):
 # Utility Functions
 
 def get_valid_path(path):
+    if path is None:
+        return None
     if not os.path.exists(path):
         print("The Provided Path for file downloaded from Zerodha does not exist!")
         path = input("Enter correct Absolute Path, including /home: ")

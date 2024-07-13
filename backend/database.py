@@ -1,4 +1,3 @@
-from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -23,12 +22,4 @@ class Spreadsheet(db.Model):
     def __repr__(self):
         return '<Spreadsheet %r>' % self.title
     
-def configure_db(app):
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'  # Replace with your database URI
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
-        
-    return db
+

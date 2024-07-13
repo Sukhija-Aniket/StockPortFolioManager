@@ -377,8 +377,9 @@ def taxation_update_data(data):
 if __name__ == "__main__":
     
     # Taking Required User Inputs
-    input_file, typ = utils.get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
+    input_file, typ, credentials = utils.get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
     input_file = utils.get_valid_path(input_file)
+    # Allowing empty input_file in order to bypass raw_data step
 
     '''
     Depreciated: Not allowing the script to execute twice a day, replaced by
@@ -387,14 +388,16 @@ if __name__ == "__main__":
     '''
 
     # Handling User data
-    input_data = pd.read_csv(input_file)
-    input_data = utils.format_input_data(input_data)
-    spreadsheet, sheet_names, raw_data = utils.get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file)
-    utils.data_already_exists(raw_data, input_data) 
+    if input_file is not None and input_file != 'None':
+        input_data = pd.read_csv(input_file)
+        input_data = utils.format_input_data(input_data)
+    spreadsheet, sheet_names, raw_data = utils.get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials)
+    if input_file is not None and input_file != 'None':
+        utils.data_already_exists(raw_data, input_data) 
+        raw_data = pd.concat([raw_data, input_data], ignore_index=True)
 
     
-    # Preparing  data for all the sheets
-    raw_data = pd.concat([raw_data, input_data], ignore_index=True)
+    # Preparing  data for other sheets
     transDetails_data = transDetails_update_data(raw_data.copy(deep=True))
     shareProfitLoss_data = shareProfitLoss_update_data(transDetails_data.copy(deep=True))
     dailyProfitLoss_data = dailyProfitLoss_update_data(transDetails_data.copy(deep=True))

@@ -3,12 +3,14 @@ import { Button, Container, Form, Row, Col, Table } from 'react-bootstrap';
 import axios from 'axios';
 import FileUploader from './components/fileUploader';
 
+
+
 const App = () => {
   const [user, setUser] = useState(null);
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [newSpreadsheetTitle, setNewSpreadsheetTitle] = useState('');
   const [isDisabled, setIsDisabled] = useState(true)
-  
+
   useEffect(() => {
     // Fetch user data if logged in
     const fetchUserData = async () => {
@@ -27,6 +29,24 @@ const App = () => {
 
     fetchUserData();
   }, [newSpreadsheetTitle]);
+
+  const handleSyncData = async () => {
+    try {
+      const formData = new FormData()
+      formData.append('spreadsheets', spreadsheets);
+
+      const res = await axios.post('http://localhost:5000/sync_data', {'spreadsheets': JSON.stringify(spreadsheets) }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.data;
+      console.log(data);
+    } catch (error) {
+      console.error('Error syncing data:', error);
+    }
+  };
 
   const fetchSpreadsheets = async () => {
     // Fetch existing spreadsheets
@@ -57,10 +77,25 @@ const App = () => {
     window.open(url, '_blank');
   };
 
+  const deleteAllCookies = () => {
+    document.cookie.split(';').forEach((c) => {
+      document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/');
+    });
+  };
+  
   const handleSignOut = async () => {
     try {
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('access_token');
+      sessionStorage.removeItem('user_id');
+      sessionStorage.removeItem('access_token');
+      deleteAllCookies();
+
       await axios.get('http://localhost:5000/logout');
       setUser(null); // Clear user state
+      setSpreadsheets([]);
+      deleteAllCookies();
+      
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -116,7 +151,7 @@ const App = () => {
                 />
               </Col>
               <Col xs="auto">
-                <Button variant="success"  disabled={isDisabled} onClick={handleCreateSpreadsheet}>
+                <Button variant="success" disabled={isDisabled} onClick={handleCreateSpreadsheet}>
                   Create Spreadsheet
                 </Button>
               </Col>
@@ -126,7 +161,16 @@ const App = () => {
           <hr />
 
           <h3>Add Data to Spreadsheet</h3>
-          <FileUploader spreadsheets={spreadsheets}/>
+          <FileUploader spreadsheets={spreadsheets} />
+
+          <hr />
+          <div className="text-center py-3">
+            <Form onSubmit={(e) => { e.preventDefault(); handleSyncData(); }}>
+              <Button variant="primary" size="lg" type="submit">
+                Sync All Data
+              </Button>
+            </Form>
+          </div>
         </div>
       )}
 
