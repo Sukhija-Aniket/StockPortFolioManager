@@ -6,6 +6,8 @@ import os, sys
 import json
 from datetime import datetime
 import subprocess
+import pika
+import pika.delivery_mode
 
 parent_directory = os.path.dirname(os.path.dirname(__file__))
 scripts_directory = os.path.join(parent_directory, 'scripts')
@@ -224,8 +226,26 @@ def add_data():
 def sync_data():
     data = request.get_json()
     spreadsheets = json.loads(data.get('spreadsheets'))
-    print(spreadsheets)
-    # spreadsheets = json.loads(request.form.get('spreadsheets'))
+    
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    channel = connection.channel()
+
+    channel.queue_declare(queue='task_queue', durable=True)
+    
+    message = json.dumps({
+        'spreadsheets': spreadsheets,
+        'credentials': session.get('credentials')
+        })
+    channel.basic_publish(
+        exchange='',
+        routing_key='task_queue',
+        body=message,
+        properties=pika.BasicProperties(
+            delivery_mode=pika.DeliveryMode.Persistent,  # make message persistent
+        ))
+    
+    connection.close()
+    return jsonify({"message": "Data queued successfully"}), 200
     
     messages = {}
     for spreadsheet in spreadsheets:
