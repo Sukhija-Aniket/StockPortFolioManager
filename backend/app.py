@@ -14,7 +14,7 @@ from backend.database import db
 from backend.routes import initialize_routes
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 app.secret_key = os.getenv('APP_SECRET_KEY')
 app_port=os.getenv('PORT')
 

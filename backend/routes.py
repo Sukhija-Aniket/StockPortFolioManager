@@ -206,10 +206,12 @@ def add_data():
     
     messages = {}
     for file in files:
+        if not os.path.exists(os.path.join(parent_directory, 'temp')):
+            os.makedirs(os.path.join(parent_directory, 'temp'))
         file_path = os.path.join(parent_directory, f'temp/{file.filename}_{google_id}')
         file.save(file_path)
         # Run the add_data.py script with the file path and spreadsheet_id as arguments
-        process = subprocess.Popen(['python', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
+        process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
@@ -226,6 +228,7 @@ def add_data():
 def sync_data():
     data = request.get_json()
     spreadsheets = json.loads(data.get('spreadsheets'))
+    print("this is spreadsheets: ", spreadsheets)
     
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()

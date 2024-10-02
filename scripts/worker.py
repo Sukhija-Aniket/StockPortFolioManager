@@ -9,14 +9,18 @@ sys.path.append(parent_directory)
 
 def callback(ch, method, properties, body):
     data = json.loads(body)
-    spreadsheets = json.loads(data['spreadsheets'])
-    credentials = json.loads(data['credentials'])
+    print('Received data:', data)
+    # ch.basic_ack(delivery_tag=method.delivery_tag)
+    # return
+    spreadsheets = data['spreadsheets']
+    credentials = data['credentials']
     print("Processing spreadsheets:", spreadsheets)
     # Add your heavy task processing code here
     
     for spreadsheet in spreadsheets:
+        print("updating spreadsheet: ", spreadsheet)
         #  Run the add_data.py script with the file path and spreadsheet_id as arguments
-        process = subprocess.Popen(['python', os.path.join(os.path.abspath(scripts_directory), "tradingScript.py"), 'None', 'sheets', spreadsheet['url'].split('/d/')[1], json.dumps(credentials)],
+        process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(scripts_directory), "tradingScript.py"), 'None', 'sheets', spreadsheet['url'].split('/d/')[1], json.dumps(credentials)],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         
