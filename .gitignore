@@ -1,4 +1,5 @@
 tradingenv/
+stockenv/
 backend/__pycache__
 instance/
 pythonPackage/__pycache__
