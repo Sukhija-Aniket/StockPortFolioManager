@@ -129,10 +129,8 @@ def shareProfitLoss_update_data(data):
             rowData[name][ShareProfitLoss_constants.CURRENT_INVESTMENT] = currentInvestment
 
     for share_name, share_details in rowData.items():
-        actualStockDetails = utils.get_prizing_details_yfinance(datetime.now(), share_name) 
-        # actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(share_details[ShareProfitLoss_constants.DATE], DATE_FORMAT), share_name)
-        # actualStockDetails = utils.get_prizing_details_alphaVintage(
-        #     share_name, GLOBAL_QUOTE)
+        # datetime.strptime --> Converts it to the YFINANCE date format
+        actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(datetime.now().strftime(DATE_FORMAT), DATE_FORMAT), share_name) 
         closing_price = 0
         if len(actualStockDetails) > 0:
             closing_price = actualStockDetails[3]
@@ -161,6 +159,8 @@ def dailyProfitLoss_update_data(data):
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, TransDetails_constants.INTRADAY_COUNT]
     data = utils.initialize_data(data, extraCols)
+    # Convert once to sort by date correctly
+    data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=DATE_FORMAT)
     grouped_data = data.groupby([Raw_constants.DATE, Raw_constants.NAME])
 
     rowData = {}
@@ -169,10 +169,11 @@ def dailyProfitLoss_update_data(data):
     ) if (isinstance(value, str) and not value.startswith('python'))}
     df = pd.DataFrame(columns=list(constants_dict.values()))
     for (date, name), group in grouped_data:
+        date = date.strftime(DATE_FORMAT)
         if date not in dailySpendings:
             dailySpendings[date] = 0
-        priceDetails = utils.get_prizing_details_yfinance(
-            datetime.strptime(date, DATE_FORMAT), name)
+        # datetime.strptime --> Converts it to the YFINANCE date format
+        priceDetails = utils.get_prizing_details_yfinance(datetime.strptime(date, DATE_FORMAT), name)
         if date not in rowData:
             rowData[date] = {}
         averagePrice = 0
@@ -285,7 +286,7 @@ def taxation_update_data(data):
                 while i < len(buyData) and j < len(sellData):
                     buyCnt = buyData[i][0]
                     sellCnt = sellData[j][0]
-                    if buyCnt >= sellCnt:
+                    if buyCnt > sellCnt:
                         # used - (buy - sell)
                         rowData[name][Taxation_constants.INTRADAY_INCOME] -= sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                         intraMap[name][date] += sellCnt
@@ -294,7 +295,7 @@ def taxation_update_data(data):
                         sellData[j][1] = 0
                         sellData[j][0] = 0
                         j += 1
-                    else:
+                    elif sellCnt > buyCnt:
                         rowData[name][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                         intraMap[name][date] += buyCnt
                         sellData[j][1] = (sellData[j][0] - buyCnt) * (sellData[j][1]/sellData[j][0])
@@ -302,6 +303,15 @@ def taxation_update_data(data):
                         buyData[i][1] = 0
                         buyData[i][0] = 0
                         i += 1
+                    else:
+                        rowData[name][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                        intraMap[name][date] += buyCnt
+                        sellData[j][1] = 0
+                        sellData[j][0] = 0
+                        buyData[i][1] = 0
+                        buyData[i][0] = 0
+                        i += 1
+                        j += 1
                 temp = intraMap[name][date]
                 intraMap[name][date] = [temp, temp]
                   

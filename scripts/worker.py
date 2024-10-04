@@ -9,9 +9,7 @@ sys.path.append(parent_directory)
 
 def callback(ch, method, properties, body):
     data = json.loads(body)
-    print('Received data:', data)
-    # ch.basic_ack(delivery_tag=method.delivery_tag)
-    # return
+    print(type(data['spreadsheets']), data['spreadsheets'])
     spreadsheets = data['spreadsheets']
     credentials = data['credentials']
     print("Processing spreadsheets:", spreadsheets)
@@ -25,6 +23,7 @@ def callback(ch, method, properties, body):
         stdout, stderr = process.communicate()
         
         if process.returncode != 0:
+            print(f"Error updating sheet: {spreadsheet['title']}: {stdout.decode()}")
             print(f"Error updating sheet {spreadsheet['title']}: {stderr.decode()}")
         else:
             print(f"Successfully processed {spreadsheet['title']}: {stdout.decode()}")

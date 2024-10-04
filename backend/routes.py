@@ -117,10 +117,8 @@ def get_spreadsheets():
 # State or Data Modifying Functions
 @main_bp.post('/create_spreadsheet') # this is a post request with title
 def create_spreadsheet():
-    print(session)
     user = session.get('user')
-    print("coming here")
-    print(user)
+    print(f"Session: {session} and user: {user}")
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -228,7 +226,7 @@ def add_data():
 def sync_data():
     data = request.get_json()
     spreadsheets = json.loads(data.get('spreadsheets'))
-    print("this is spreadsheets: ", spreadsheets)
+    print("Syncing Data for spreadsheetID: ", spreadsheets)
     
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
@@ -252,7 +250,6 @@ def sync_data():
     
     messages = {}
     for spreadsheet in spreadsheets:
-        print(spreadsheet)
         #  Run the add_data.py script with the file path and spreadsheet_id as arguments
         process = subprocess.Popen(['python', os.path.join(os.path.abspath(scripts_directory), "tradingScript.py"), 'None', 'sheets', spreadsheet['url'].split('/d/')[1], json.dumps(session.get('credentials'))],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pythonPackage.constants import *
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+import pytz
 
 
 # Common Utility Functions
@@ -21,7 +22,7 @@ def update_env_file(key, value, env_file):
             line = f"{key}={value}\n"
         updated_lines.append(line)
 
-    print(updated_lines)
+    print("Lines updated are: ", updated_lines)
     with open(env_file, 'w') as file:
         file.writelines(updated_lines)
 
@@ -31,8 +32,7 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
     value = ''
     key = 'EXCEL_FILE_NAME'
     credentials=None
-    print("Args length: ", len(args))
-    print("Args: ", args)
+    print("Args length: ", len(args), "and Args: ", args)
     if len(args) > 4:
         credentials = json.loads(args[4])       
     if len(args) > 3:
@@ -62,7 +62,6 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
             value = input("Enter your choice: ")
             key = 'SPREADSHEET_ID'
 
-    print("going to update env file", value)
     if value is not None and value != '':
         update_env_file(key, value, env_file)
 
@@ -97,9 +96,8 @@ def data_already_exists(raw_data, input_data):
 # Functions Specific To Sheets
 
 def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=None):
-    print("Yet to enter")
+    print("Authenticating Sheets")
     if credentials is not None:
-        print("Entering here finally")
         try:
             credentials_obj = Credentials.from_authorized_user_info(credentials)
             if credentials_obj and credentials_obj.expired and credentials_obj.refresh_token:
@@ -324,8 +322,8 @@ def initialize_data(data, extraCols=[], sortList=[]):
     for header in data.columns.tolist():
         if is_formatable(data[header].iloc[0]):
             data[header] = pd.to_numeric(data[header])
+            # This is the same as YFinance date format
     data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=DATE_FORMAT)
-    
     if len(sortList) > 0:
         data.sort_values(by=sortList, inplace=True)
     data = data.round(4)
@@ -378,7 +376,7 @@ def format_add_data(input_data):
     
     df[Raw_constants.DATE] = input_data[Data_constants.DATE].apply(
         lambda x: get_data_date(x))
-    df[Raw_constants.NAME] = input_data[Data_constants.NAME]
+    df[Raw_constants.NAME] = input_data.apply(get_symbol, axis=1)
     df[Raw_constants.PRICE] = input_data[Data_constants.PRICE]
     df[Raw_constants.QUANTITY] = input_data[Data_constants.QUANTITY]
     df[Raw_constants.NET_AMOUNT] = df.apply(get_net_amount, axis=1)
@@ -409,6 +407,11 @@ def get_data_quantity(row):
     if str(row[Data_constants.TYPE]).upper() == SELL:
         val = '-' + val
     return val
+
+def get_symbol(row):
+    symbol = row[Data_constants.NAME]
+    symbol = str(symbol).split('-')[0]
+    return str(symbol)
 
 def get_order_date(date):
     date_obj = datetime.strptime(date, ORDER_TIME_FORMAT)
@@ -666,12 +669,24 @@ def get_taxation_row():
     return context
 
 def get_prizing_details_yfinance(date, name):
+    print("Getting financial details for stock {}".format(name))
+    cur_date = date.date()
+    timezone = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(timezone)
+    if cur_date == now.date():
+        if not now.time() >= datetime.now().time().replace(hour=16, minute=0):
+            date = (date - timedelta(days=1))
+    
+        
     name = name.upper()
     nse_name = name + DOT_NS
     bse_name = name + DOT_BO
     output = [0,0,0,0,0]
+    
+    if date.weekday() > 4:
+        date = date - timedelta(days=date.weekday() - 4) # To always get prize of Friday
     try:
-        data = yf.download(nse_name, start=date,end=min(datetime.now(), date+timedelta(days=1)), period='10y')
+        data = yf.download(nse_name, start=date,end=min(datetime.now(), date+timedelta(days=1)), period='5d')
         output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0], data['Volume'].iloc[0]]
         return [float(x) for x in output]
     except Exception as e:
@@ -680,7 +695,7 @@ def get_prizing_details_yfinance(date, name):
             output = [data['Open'].iloc[0], data['High'].iloc[0], data['Low'].iloc[0], data['Close'].iloc[0], data['Volume'].iloc[0]]
             return [float(x) for x in output]
         except Exception as e:
-            print("Encountered excpetion using yfinance API: ", e)
+            print("Encountered exception using yfinance API: ", e)
     return output
 
 def get_prizing_details_alphaVantage(stock_name, function):

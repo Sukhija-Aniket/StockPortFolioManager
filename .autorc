@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    "git-tag"
+  ],
+  "owner": "Sukhija-Aniket",
+  "repo": "StockPortfolioManager",
+  "name": "Sukhija-Aniket",
+  "email": "b20081.aniket@gmail.com",
+  "baseBranch": "mqueue"
+}

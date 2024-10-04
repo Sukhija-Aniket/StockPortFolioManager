@@ -4,3 +4,7 @@ backend/__pycache__
 instance/
 pythonPackage/__pycache__
 temp/
+.env
+
+scripts/node_modules/
+scripts/*
