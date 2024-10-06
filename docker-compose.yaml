@@ -1,0 +1,58 @@
+version: '3'
+
+services:
+  # Backend service for Python
+  backend:
+    build:
+      context: ./backend
+    volumes:
+      - ./backend:/app
+    environment:
+      - RABBITMQ_URL=rabbitmq://rabbitmq:5672/
+      # Add other environment variables here
+    depends_on:
+      - rabbitmq
+      - worker
+    restart: always
+    networks:
+      - my-network
+
+  # Frontend service for React
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    restart: always
+    networks:
+      - my-network
+
+  # RabbitMQ service for the worker
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    ports:
+      - "5672:5672"
+    restart: always
+    networks:
+      - my-network
+
+  # Service for the worker.py script
+  worker:
+    build:
+      context: ./scripts
+    volumes:
+      - ./scripts:/app
+    environment:
+      - RABBITMQ_URL=rabbitmq://rabbitmq:5672/
+      # Add other environment variables here
+    depends_on:
+      - rabbitmq
+    restart: always
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    driver: bridge

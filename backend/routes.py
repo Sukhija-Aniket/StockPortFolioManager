@@ -9,12 +9,11 @@ import subprocess
 import pika
 import pika.delivery_mode
 
-parent_directory = os.path.dirname(os.path.dirname(__file__))
-scripts_directory = os.path.join(parent_directory, 'scripts')
-sys.path.append(parent_directory)
+app_directory = os.path.dirname(__file__)
+scripts_directory = os.path.join(app_directory, 'scripts')
 
 from dotenv import load_dotenv
-env_file = os.path.join(parent_directory, 'secrets', '.env')
+env_file = os.path.join(app_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
 from backend.database import db, User, Spreadsheet
@@ -22,7 +21,7 @@ from backend.utils import credentials_to_dict
 
 # Path to your Google Sheets API credentials
 
-credentials_file = os.path.join(parent_directory, 'secrets', 'credentials.json')
+credentials_file = os.path.join(app_directory, 'secrets', 'credentials.json')
 scopes = [
     "openid",
     "https://www.googleapis.com/auth/drive.file",
@@ -204,9 +203,9 @@ def add_data():
     
     messages = {}
     for file in files:
-        if not os.path.exists(os.path.join(parent_directory, 'temp')):
-            os.makedirs(os.path.join(parent_directory, 'temp'))
-        file_path = os.path.join(parent_directory, f'temp/{file.filename}_{google_id}')
+        if not os.path.exists(os.path.join(app_directory, 'temp')):
+            os.makedirs(os.path.join(app_directory, 'temp'))
+        file_path = os.path.join(app_directory, f'temp/{file.filename}_{google_id}')
         file.save(file_path)
         # Run the add_data.py script with the file path and spreadsheet_id as arguments
         process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],

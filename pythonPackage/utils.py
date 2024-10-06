@@ -8,6 +8,7 @@ from pythonPackage.constants import *
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import pytz
+import numpy as np
 
 
 # Common Utility Functions
@@ -142,7 +143,10 @@ def format_background_sheets(spreadsheet ,sheet, cell_range):
     spreadsheet.batch_update({"requests":requests})
 
 def display_and_format_sheets(sheet, data):
-    data = data.round(4)
+    numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+    data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Convert string to numeric
+    data[numeric_cols] = data[numeric_cols].round(4)
+    
     headers = data.columns.tolist() 
     data = data.values.tolist() 
 
@@ -153,6 +157,16 @@ def display_and_format_sheets(sheet, data):
     num_columns = len(headers)
     header_range = f'A1:{chr(64 + num_columns)}1'
     sheet.format(header_range, {"textFormat": {"bold": True}})
+    
+    # Format numeric columns with 4 decimal places
+    numeric_header_range = [f"{chr(65 + i)}1" for i, col in enumerate(headers) if col in numeric_cols]
+    number_format = {
+        "numberFormat": {
+            "type": "NUMBER",
+            "pattern": "#,##0"
+        }
+    }
+    sheet.format(','.join(numeric_header_range), number_format)
 
 def initialize_sheets(spreadsheet, sheet_name):
     sheet = spreadsheet.worksheet(sheet_name)

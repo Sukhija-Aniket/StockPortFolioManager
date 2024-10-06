@@ -4,22 +4,22 @@ import sys
 from datetime import datetime
 
 scripts_directory = os.path.dirname(__file__)
-parent_directory = os.path.dirname(scripts_directory)
-sys.path.append(parent_directory)
+# parent_directory = os.path.dirname(scripts_directory)
+# sys.path.append(parent_directory)
 
 from pythonPackage import utils
 from pythonPackage.constants import *
 
 # Important Information
 from dotenv import load_dotenv
-env_file = os.path.join(parent_directory, 'secrets', '.env')
+env_file = os.path.join(scripts_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
 api_key_file_name = 'tradingprojects-apiKey.json'
 excel_file_name = os.getenv('EXCEL_FILE_NAME')
 spreadsheet_id = os.getenv('SPREADSHEET_ID')
-spreadsheet_file = os.path.join(parent_directory, 'assets', excel_file_name)
-credentials_file = os.path.join(parent_directory, 'secrets', api_key_file_name)
+spreadsheet_file = os.path.join(scripts_directory, 'assets', excel_file_name)
+credentials_file = os.path.join(scripts_directory, 'secrets', api_key_file_name)
 
 # Required Utility Functions
 

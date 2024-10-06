@@ -2,12 +2,10 @@ from flask import Flask
 import os, sys
 from flask_cors import CORS
 
-parent_directory = os.path.dirname(os.path.dirname(__file__))
-scripts_directory = os.path.join(parent_directory, 'scripts')
-sys.path.append(parent_directory)
+app_directory = os.path.dirname(__file__)
 
 from dotenv import load_dotenv
-env_file = os.path.join(parent_directory, 'secrets', '.env')
+env_file = os.path.join(app_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
 from backend.database import db
