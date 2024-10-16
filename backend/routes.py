@@ -2,7 +2,7 @@ from flask import redirect, session, request, jsonify, Blueprint
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import os, sys
+import os
 import json
 from datetime import datetime
 import subprocess
@@ -10,14 +10,13 @@ import pika
 import pika.delivery_mode
 
 app_directory = os.path.dirname(__file__)
-scripts_directory = os.path.join(app_directory, 'scripts')
 
 from dotenv import load_dotenv
 env_file = os.path.join(app_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
-from backend.database import db, User, Spreadsheet
-from backend.utils import credentials_to_dict
+from database import db, User, Spreadsheet
+from utils import credentials_to_dict
 
 # Path to your Google Sheets API credentials
 
@@ -208,7 +207,7 @@ def add_data():
         file_path = os.path.join(app_directory, f'temp/{file.filename}_{google_id}')
         file.save(file_path)
         # Run the add_data.py script with the file path and spreadsheet_id as arguments
-        process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
+        process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(app_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
@@ -227,7 +226,7 @@ def sync_data():
     spreadsheets = json.loads(data.get('spreadsheets'))
     print("Syncing Data for spreadsheetID: ", spreadsheets)
     
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters(os.getenv("RABBITMQ_HOST")))
     channel = connection.channel()
 
     channel.queue_declare(queue='task_queue', durable=True)
@@ -246,22 +245,6 @@ def sync_data():
     
     connection.close()
     return jsonify({"message": "Data queued successfully"}), 200
-    
-    messages = {}
-    for spreadsheet in spreadsheets:
-        #  Run the add_data.py script with the file path and spreadsheet_id as arguments
-        process = subprocess.Popen(['python', os.path.join(os.path.abspath(scripts_directory), "tradingScript.py"), 'None', 'sheets', spreadsheet['url'].split('/d/')[1], json.dumps(session.get('credentials'))],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        
-        if process.returncode != 0:
-            print(f"Error updating sheet {spreadsheet['title']}: {stderr.decode()}")
-            messages[spreadsheet['title']] = "Error updatng sheet"
-        else:
-            messages[spreadsheet['title']] = "Successfully Processed"
-            print(f"Successfully processed {spreadsheet['title']}: {stdout.decode()}")
-    
-    return jsonify({"message": messages}), 200
 
 def initialize_routes(app):
     app.register_blueprint(main_bp)

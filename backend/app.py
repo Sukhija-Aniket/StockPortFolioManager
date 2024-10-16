@@ -1,5 +1,5 @@
 from flask import Flask
-import os, sys
+import os
 from flask_cors import CORS
 
 app_directory = os.path.dirname(__file__)
@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 env_file = os.path.join(app_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
-from backend.database import db
-from backend.routes import initialize_routes
+from database import db
+from routes import initialize_routes
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})

@@ -6,6 +6,9 @@ scripts_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(scripts_directory)
 sys.path.append(parent_directory)
 
+from dotenv import load_dotenv
+env_file = os.path.join(scripts_directory, 'secrets', '.env')
+load_dotenv(env_file)
 
 def callback(ch, method, properties, body):
     data = json.loads(body)
@@ -30,7 +33,7 @@ def callback(ch, method, properties, body):
     
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+connection = pika.BlockingConnection(pika.ConnectionParameters(os.getenv("RABBITMQ_HOST")))
 channel = connection.channel()
 
 channel.queue_declare(queue='task_queue', durable=True)

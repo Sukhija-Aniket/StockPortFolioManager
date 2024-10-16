@@ -8,11 +8,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-# Set environment variables
-ENV RABBITMQ_URL="rabbitmq://rabbitmq:5672/"
-
 # Expose the port used by the backend service
-EXPOSE 8000
+EXPOSE 5000
 
 # Start the backend service
 CMD ["python", "app.py"]

@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 import openpyxl
-from pythonPackage import utils
+from utils import *
 import sys
 from datetime import datetime
 
@@ -20,7 +20,7 @@ spreadsheet_file = os.path.join(os.path.dirname(__file__), excel_file_name)
 
 def transDetails_update_data(data):
     sortList=['Name', 'Date', 'Transaction Type']
-    data = utils.initialize_data(data, sortList=sortList)
+    data = initialize_data(data, sortList=sortList)
     #  Add necessary columns to data
     data['STT'] = abs(data['Net Amount'] * 0.001)
     data['Transaction Charges'] = abs(data['Net Amount'] * 0.000035)
@@ -31,7 +31,7 @@ def transDetails_update_data(data):
 
 def shareProfitLoss_update_data(data):
     extraCols = ['STT', 'GST', 'Transaction Charges', 'Stamp Charges']
-    data = utils.initialize_data(data, extraCols=extraCols)
+    data = initialize_data(data, extraCols=extraCols)
     grouped_data = data.groupby(['Transaction Type', 'Name'])
     
     infoMap = {}
@@ -39,7 +39,7 @@ def shareProfitLoss_update_data(data):
     df = pd.DataFrame(columns=['Date', 'Name', 'Average Buy Price', 'Average Sale Price', 'Average Cost of Sold Shares','Shares Bought', 'Shares Sold', 'Shares Remaining' ,'Profit Per Share', 'Net Profit', 'Total Investment', 'Current Investment', 'Closing Price', 'Holdings'])
     for (transaction_type, name), group in grouped_data:
         if name not in rowData:
-            rowData[name] = utils.get_spl_row()
+            rowData[name] = get_spl_row()
             infoMap[name] = {}
         averageBuyPrice = 0
         averageSalePrice = 0
@@ -85,7 +85,7 @@ def shareProfitLoss_update_data(data):
 
             
     for share_name, share_details in rowData.items():
-        actualStockDetails = utils.get_prizing_details_alphaVintage(share_name,'GLOBAL_QUOTE')
+        actualStockDetails = get_prizing_details_alphaVantage(share_name,'GLOBAL_QUOTE')
         closing_price = 0
         if len(actualStockDetails) > 0:
             closing_price = actualStockDetails[3]
@@ -110,7 +110,7 @@ def shareProfitLoss_update_data(data):
 
 def dailyProfitLoss_update_data(data):
     extraCols = ['STT', 'GST', 'Transaction Charges', 'Stamp Charges']
-    data = utils.initialize_data(data, extraCols)
+    data = initialize_data(data, extraCols)
     grouped_data = data.groupby(['Date', 'Name'])
 
     rowData = {}
@@ -119,7 +119,7 @@ def dailyProfitLoss_update_data(data):
     for (date, name), group in grouped_data:
         if date not in dailySpendings:
             dailySpendings[date] = 0
-        priceDetails = utils.get_prizing_details_yfinance(datetime.strptime(date,'%m/%d/%Y'), name)
+        priceDetails = get_prizing_details_yfinance(datetime.strptime(date,'%m/%d/%Y'), name)
         if date not in rowData:
             rowData[date] = {}
         averagePrice = 0
@@ -174,37 +174,37 @@ def dailyProfitLoss_update_data(data):
 # Functions for Sheet
 
 def transDetails_update_sheets(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    utils.transDetails_formatting_sheets(spreadsheet, sheet)
+    sheet = initialize_sheets(spreadsheet, sheet_name)
+    display_and_format_sheets(sheet, data)
+    transDetails_formatting_sheets(spreadsheet, sheet)
 
 def shareProfitLoss_update_sheets(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    utils.shareProfitLoss_formatting_sheets(spreadsheet, sheet)
+    sheet = initialize_sheets(spreadsheet, sheet_name)
+    display_and_format_sheets(sheet, data)
+    shareProfitLoss_formatting_sheets(spreadsheet, sheet)
 
 def dailyProfitLoss_update_sheets(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_sheets(spreadsheet, sheet_name)
-    utils.display_and_format_sheets(sheet, data)
-    utils.dailyProfitLoss_formatting_sheets(spreadsheet, sheet)
+    sheet = initialize_sheets(spreadsheet, sheet_name)
+    display_and_format_sheets(sheet, data)
+    dailyProfitLoss_formatting_sheets(spreadsheet, sheet)
 
 
 # Functions for Excel
 
 def transDetails_update_excel(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    utils.transDetails_formatting_excel(sheet)
+    sheet = initialize_excel(spreadsheet, sheet_name)
+    display_and_format_excel(sheet, data)
+    transDetails_formatting_excel(sheet)
 
 def shareProfitLoss_update_excel(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    utils.shareProfitLoss_formatting_excel(sheet)
+    sheet = initialize_excel(spreadsheet, sheet_name)
+    display_and_format_excel(sheet, data)
+    shareProfitLoss_formatting_excel(sheet)
     
 def dailyProfitLoss_update_excel(spreadsheet, sheet_name, data):
-    sheet = utils.initialize_excel(spreadsheet, sheet_name)
-    utils.display_and_format_excel(sheet, data)
-    utils.dailyProfitLoss_formatting_excel(sheet)
+    sheet = initialize_excel(spreadsheet, sheet_name)
+    display_and_format_excel(sheet, data)
+    dailyProfitLoss_formatting_excel(sheet)
 
 
 # Utility Functions
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
     typ = get_args_and_input()
     if typ == 'sheets':
-        spreadsheet = utils.authenticate_and_get_sheets(credentials_file, spreadsheet_id)
+        spreadsheet = authenticate_and_get_sheets(credentials_file, spreadsheet_id)
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
     else:
@@ -264,7 +264,7 @@ if __name__ == "__main__":
         sheet_names = spreadsheet.sheetnames
     
 
-    input_data = utils.read_data_from_sheets(spreadsheet, sheet_names[0])
+    input_data = read_data_from_sheets(spreadsheet, sheet_names[0])
     print("Raw Input Data read successfully")
 
     transDetails_data = transDetails_update_data(input_data.copy(deep=True))
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     transDetails_update_sheets(spreadsheet, sheet_names[1], transDetails_data)
     print("Transaction Details updated successfully")
 
-    data = utils.read_data_from_sheets(spreadsheet, sheet_names[1])
+    data = read_data_from_sheets(spreadsheet, sheet_names[1])
     print("Transaction Details Data read successfully")
 
     shareProfitLoss_data = shareProfitLoss_update_data(data.copy(deep=True))

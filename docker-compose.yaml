@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   # Backend service for Python
   backend:
@@ -8,8 +6,10 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - RABBITMQ_URL=rabbitmq://rabbitmq:5672/
-      # Add other environment variables here
+      - RABBITMQ_HOST=rabbitmq
+      - PORT=5000
+    ports:
+      - "5000:5000"
     depends_on:
       - rabbitmq
       - worker
@@ -25,6 +25,8 @@ services:
       - ./frontend:/app
     ports:
       - "3000:3000"
+    depends_on:
+      - backend
     restart: always
     networks:
       - my-network
@@ -32,6 +34,8 @@ services:
   # RabbitMQ service for the worker
   rabbitmq:
     image: rabbitmq:3-alpine
+    environment:
+      - RABBITMQ_HOST=rabbitmq
     ports:
       - "5672:5672"
     restart: always
@@ -45,8 +49,7 @@ services:
     volumes:
       - ./scripts:/app
     environment:
-      - RABBITMQ_URL=rabbitmq://rabbitmq:5672/
-      # Add other environment variables here
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       - rabbitmq
     restart: always

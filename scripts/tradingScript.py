@@ -7,8 +7,8 @@ scripts_directory = os.path.dirname(__file__)
 # parent_directory = os.path.dirname(scripts_directory)
 # sys.path.append(parent_directory)
 
-from pythonPackage import utils
-from pythonPackage.constants import *
+from utils import *
+from constants import *
 
 # Important Information
 from dotenv import load_dotenv
@@ -28,7 +28,7 @@ def script_already_executed():
     if (last_execution_date == datetime.now().strftime(DATE_FORMAT)):
         print("The script has been already been executed today, Exiting...")
         exit()
-    utils.update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date, env_file)
+    update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date, env_file)
 
 
 # Functions for Handling Data
@@ -37,31 +37,31 @@ def transDetails_update_data(data):
     # Considering only IntraDay and Delivery and not FNO
 
     data[TransDetails_constants.TRANSACTION_TYPE] = data[TransDetails_constants.QUANTITY].apply(
-        lambda x: utils.update_transaction_type(x))
+        lambda x: update_transaction_type(x))
 
     sortList = [Raw_constants.NAME, Raw_constants.DATE,
                 TransDetails_constants.TRANSACTION_TYPE]
-    data = utils.initialize_data(data, sortList=sortList)
+    data = initialize_data(data, sortList=sortList)
 
     # check for Intraday Count and Delivery Count
-    utils.update_intraday_count(data)
+    update_intraday_count(data)
 
     # Calculating Additional Costs Incurred
-    data[TransDetails_constants.STT] = data.apply(utils.calculate_stt, axis=1)
+    data[TransDetails_constants.STT] = data.apply(calculate_stt, axis=1)
     data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] = data.apply(
-        utils.calculate_transaction_charges, axis=1)
+        calculate_transaction_charges, axis=1)
     data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = abs(
         data[TransDetails_constants.NET_AMOUNT] * 0.000001)
     data[TransDetails_constants.BROKERAGE] = data.apply(
-        utils.calculate_brokerage, axis=1)
+        calculate_brokerage, axis=1)
     data[TransDetails_constants.GST] = abs(
         0.18 * (data[TransDetails_constants.BROKERAGE] + data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES]))
     data[TransDetails_constants.STAMP_DUTY] = abs(
         0.00015 * data[TransDetails_constants.NET_AMOUNT])
     data[TransDetails_constants.STAMP_DUTY] = data.apply(
-        utils.calculate_stamp_duty, axis=1)
+        calculate_stamp_duty, axis=1)
     data[TransDetails_constants.DP_CHARGES] = data.apply(
-        utils.calculate_dp_charges, axis=1, args=({},))
+        calculate_dp_charges, axis=1, args=({},))
     data[TransDetails_constants.FINAL_AMOUNT] = data[TransDetails_constants.NET_AMOUNT] + data[TransDetails_constants.STT] + data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] + \
         data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + data[TransDetails_constants.GST] + \
         data[TransDetails_constants.STAMP_DUTY] + \
@@ -73,7 +73,7 @@ def shareProfitLoss_update_data(data):
 
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
-    data = utils.initialize_data(data, extraCols=extraCols)
+    data = initialize_data(data, extraCols=extraCols)
     grouped_data = data.groupby(
         [TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME])
 
@@ -85,7 +85,7 @@ def shareProfitLoss_update_data(data):
     df = pd.DataFrame(columns=list(constants_dict.values()))
     for (transaction_type, name), group in grouped_data:
         if name not in rowData:
-            rowData[name] = utils.get_spl_row()
+            rowData[name] = get_spl_row()
             infoMap[name] = {}
         averageBuyPrice = 0
         averageSalePrice = 0
@@ -106,7 +106,7 @@ def shareProfitLoss_update_data(data):
             if BUY in infoMap[name]:
                 for x in infoMap[name][BUY]:
                     currentInvestment += x[6]
-                averageCostOfSoldShares = utils.calculate_average_cost_of_sold_shares(
+                averageCostOfSoldShares = calculate_average_cost_of_sold_shares(
                     infoMap[name])
             rowData[name][ShareProfitLoss_constants.AVERAGE_SALE_PRICE] = averageSalePrice
             rowData[name][ShareProfitLoss_constants.SHARES_SOLD] = numSharesSold
@@ -130,7 +130,7 @@ def shareProfitLoss_update_data(data):
 
     for share_name, share_details in rowData.items():
         # datetime.strptime --> Converts it to the YFINANCE date format
-        actualStockDetails = utils.get_prizing_details_yfinance(datetime.strptime(datetime.now().strftime(DATE_FORMAT), DATE_FORMAT), share_name) 
+        actualStockDetails = get_prizing_details_yfinance(datetime.strptime(datetime.now().strftime(DATE_FORMAT), DATE_FORMAT), share_name) 
         closing_price = 0
         if len(actualStockDetails) > 0:
             closing_price = actualStockDetails[3]
@@ -158,7 +158,7 @@ def shareProfitLoss_update_data(data):
 def dailyProfitLoss_update_data(data):
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, TransDetails_constants.INTRADAY_COUNT]
-    data = utils.initialize_data(data, extraCols)
+    data = initialize_data(data, extraCols)
     # Convert once to sort by date correctly
     data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=DATE_FORMAT)
     grouped_data = data.groupby([Raw_constants.DATE, Raw_constants.NAME])
@@ -173,7 +173,7 @@ def dailyProfitLoss_update_data(data):
         if date not in dailySpendings:
             dailySpendings[date] = 0
         # datetime.strptime --> Converts it to the YFINANCE date format
-        priceDetails = utils.get_prizing_details_yfinance(datetime.strptime(date, DATE_FORMAT), name)
+        priceDetails = get_prizing_details_yfinance(datetime.strptime(date, DATE_FORMAT), name)
         if date not in rowData:
             rowData[date] = {}
         averagePrice = 0
@@ -230,7 +230,7 @@ def dailyProfitLoss_update_data(data):
 def taxation_update_data(data):
     extraCols = [TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
-    data = utils.initialize_data(data, extraCols=extraCols)
+    data = initialize_data(data, extraCols=extraCols)
     grouped_data = data.groupby(
         [TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE])
 
@@ -251,7 +251,7 @@ def taxation_update_data(data):
         if name not in infoMap:
             intraMap[name] = {}
             infoMap[name] = {}
-            rowData[name] = utils.get_taxation_row()
+            rowData[name] = get_taxation_row()
         if date not in infoMap[name]:
             infoMap[name][date] = {}
             # intraMap[name][date] = 0 # this needs to be written done, correction made.
@@ -352,7 +352,7 @@ def taxation_update_data(data):
                     j += 1
                 continue
             # Assumption no details are zero initially
-            if utils.is_long_term(buyDetails[0], sellDetails[0]):
+            if is_long_term(buyDetails[0], sellDetails[0]):
                 # used - (buy - sell)
                 rowData[name][Taxation_constants.LTCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
             else:
@@ -387,8 +387,8 @@ def taxation_update_data(data):
 if __name__ == "__main__":
     
     # Taking Required User Inputs
-    input_file, typ, credentials = utils.get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
-    input_file = utils.get_valid_path(input_file)
+    input_file, typ, credentials = get_args_and_input(sys.argv, excel_file_name, spreadsheet_id, env_file)
+    input_file = get_valid_path(input_file)
     # Allowing empty input_file in order to bypass raw_data step
 
     '''
@@ -400,10 +400,10 @@ if __name__ == "__main__":
     # Handling User data
     if input_file is not None and input_file != 'None':
         input_data = pd.read_csv(input_file)
-        input_data = utils.format_input_data(input_data)
-    spreadsheet, sheet_names, raw_data = utils.get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials)
+        input_data = format_input_data(input_data)
+    spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials)
     if input_file is not None and input_file != 'None':
-        utils.data_already_exists(raw_data, input_data) 
+        data_already_exists(raw_data, input_data) 
         raw_data = pd.concat([raw_data, input_data], ignore_index=True)
 
     
@@ -415,8 +415,8 @@ if __name__ == "__main__":
     data_items = [raw_data, transDetails_data, shareProfitLoss_data, dailyProfitLoss_data, taxation_data]
 
     # Handling the formatting and final updation
-    formatting_funcs = utils.get_formatting_funcs(typ)
-    updating_func = utils.get_updating_func(typ)
+    formatting_funcs = get_formatting_funcs(typ)
+    updating_func = get_updating_func(typ)
     
     for i in range(len(formatting_funcs)):
         updating_func(spreadsheet, sheet_names[i], data_items[i], formatting_funcs[i])
