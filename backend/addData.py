@@ -48,6 +48,7 @@ if __name__ == "__main__":
     # Handling User data and preparing raw data
     input_data = pd.read_csv(input_file)
     input_data = format_add_data(input_data)
+    # print(input_data)
     spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials)
     data_already_exists(raw_data, input_data)
     raw_data = pd.concat([raw_data, input_data], ignore_index=True)

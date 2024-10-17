@@ -67,6 +67,16 @@ def update_sheet(spreadsheet, sheet_name, data, formatting_function=None):
         formatting_function(spreadsheet, sheet)
     print(f"{sheet_name} updated Successfully!")
 
+def replace_out_of_range_floats(obj):
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+    elif isinstance(obj, list):
+        return [replace_out_of_range_floats(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: replace_out_of_range_floats(value) for key, value in obj.items()}
+    return obj
+
 def display_and_format_sheets(sheet, data):
     numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
     data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Convert string to numeric
@@ -202,6 +212,11 @@ def format_add_data(input_data):
     df[Raw_constants.NET_AMOUNT] = df.apply(get_net_amount, axis=1)
     df[Raw_constants.STOCK_EXCHANGE] = input_data[Data_constants.STOCK_EXCHANGE]
     return df
+
+def check_valid_path(path):
+    if path is None or not os.path.exists(path):
+        return None
+    return True
 
 def get_valid_path(path):
     if path is None:
