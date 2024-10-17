@@ -199,9 +199,7 @@ def get_net_amount(row):
 def format_add_data(input_data):
     input_data[Data_constants.QUANTITY] = input_data.apply(
         get_data_quantity, axis=1)
-    
-    constants_dict = {key: value for key, value in vars(Raw_constants).items(
-    ) if (isinstance(value, str) and not value.startswith('python'))}
+    constants_dict = {key: value for key, value in Raw_constants.__dict__.items() if not key.startswith('__')}
     df = pd.DataFrame(columns=list(constants_dict.values()))
     
     df[Raw_constants.DATE] = input_data[Data_constants.DATE].apply(

@@ -8,7 +8,7 @@ from datetime import datetime
 import subprocess
 import pika
 import pika.delivery_mode
-# from addData import upload_data
+from addData import upload_data
 
 app_directory = os.path.dirname(__file__)
 scripts_directory = os.path.join(os.path.dirname(app_directory), 'scripts')
@@ -209,17 +209,7 @@ def add_data():
         file_path = os.path.join(app_directory, f'temp/{file.filename}_{google_id}')
         file.save(file_path)
         # Run the add_data.py script with the file path and spreadsheet_id as arguments
-        # upload_data(os.path.abspath(file_path), 'sheets', url.split('/d/')[1], session.get('credentials'))
-        process = subprocess.Popen(['python3.8', os.path.join(os.path.abspath(scripts_directory), "addData.py"), os.path.abspath(file_path), 'sheets', url.split('/d/')[1], json.dumps(session.get('credentials'))],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-
-        if process.returncode != 0:
-            print(f"Error processing file {file.filename}: {stderr.decode()}")
-            messages[file.filename] = "Error processing file"
-        else:
-            messages[file.filename] = "Successfully Processed"
-            print(f'Successfully processed {file.filename}: {stdout.decode()}')
+        upload_data(os.path.abspath(file_path), 'sheets', url.split('/d/')[1], session.get('credentials'))
     
     return jsonify({"message": messages}), 200
 
