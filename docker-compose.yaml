@@ -8,6 +8,10 @@ services:
     environment:
       - RABBITMQ_HOST=rabbitmq
       - PORT=5000
+      - RABBITMQ_USERNAME=username
+      - RABBITMQ_PASSWORD=password
+      # change it to a public domain when bought, and add in credentials.json file and update google OAuth Credentials
+      - FRONTEND_SERVICE=localhost:3000 
     ports:
       - "5000:5000"
     depends_on:
@@ -23,6 +27,9 @@ services:
       context: ./frontend
     volumes:
       - ./frontend:/app
+    environment:
+    # change it to a public domain when bought, and add in credentials.json file and update google OAuth credentials
+      - REACT_APP_BACKEND_SERVICE=localhost:5000
     ports:
       - "3000:3000"
     depends_on:
@@ -33,11 +40,14 @@ services:
 
   # RabbitMQ service for the worker
   rabbitmq:
-    image: rabbitmq:3-alpine
+    image: rabbitmq:3-management-alpine
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_DEFAULT_USER=username
+      - RABBITMQ_DEFAULT_PASS=password
     ports:
       - "5672:5672"
+      - "15672:15672"
     restart: always
     networks:
       - my-network
@@ -50,6 +60,8 @@ services:
       - ./scripts:/app
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USERNAME=username
+      - RABBITMQ_PASSWORD=password
     depends_on:
       - rabbitmq
     restart: always

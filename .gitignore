@@ -8,3 +8,6 @@ temp/
 
 scripts/node_modules/
 scripts/*
+.qodo
+
+.vscode/

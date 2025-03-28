@@ -3,13 +3,20 @@ import gspread, requests, os
 from constants import *
 import pandas as pd
 from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 import openpyxl
 import json
 import numpy as np
+import google_auth_httplib2
+import httplib2
+import certifi
+
+# Create an HTTP client with certifi CA bundle
+http = httplib2.Http(ca_certs=certifi.where(), disable_ssl_certificate_validation=True)
 
 # Functions for sheets
-def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=None):
+def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=None, http=None):
     print("Authenticating Sheets")
     if credentials is not None:
         try:
@@ -19,8 +26,17 @@ def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=No
             else:
                 raise ValueError("OAuth Credentials are not available or invalid")
             
+            # authorized_http = google_auth_httplib2.AuthorizedHttp(credentials_obj, http=http)
+            # service = build('sheets', 'v4', http=authorized_http)
+            # spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            # authorized_http = google_auth_httplib2.AuthorizedHttp(credentials_obj, http=http)
+            # gc = gspread.authorize(credentials_obj)
+            print('okay coming here')
+            # gc.session = authorized_http
             gc = gspread.authorize(credentials_obj)
             spreadsheet = gc.open_by_key(spreadsheet_id)
+            
+            
             return spreadsheet
         except Exception as e:
             print(f"Unable to authorize spreadsheet {e}, exiting...")
@@ -103,10 +119,10 @@ def display_and_format_sheets(sheet, data):
     }
     sheet.format(','.join(numeric_header_range), number_format)
 
-def get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials=None):
+def get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials=None, http=None):
     if typ == 'sheets':
         spreadsheet = authenticate_and_get_sheets(
-            credentials_file, spreadsheet_id, credentials)
+            credentials_file, spreadsheet_id, credentials, http)
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
         raw_data = read_data_from_sheets(spreadsheet, sheet_names[0])

@@ -3,6 +3,7 @@ import { Button, FormLabel, Form, Row, Col } from 'react-bootstrap';
 import axios from 'axios';
 
 const FileUploader = ({ onUpload, spreadsheets }) => {
+  const REACT_APP_BACKEND_SERVICE = process.env.REACT_APP_BACKEND_SERVICE;
   const [files, setFiles] = useState(null);
   const [status, setStatus] = useState('initial');
   const [uploadTitle, setUploadTitle] = useState('');
@@ -10,12 +11,14 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
   const [isDisabled, setIsDisabled] = useState(true);
 
   useEffect(() => {
+    console.log("inside the file uploader use effect");
     setIsDisabled(true);
     setSpreadsheeturl('');
+    console.log("here also")
     if (files) {
       console.log(spreadsheets)
       for (let sheet in spreadsheets) {
-        if (spreadsheets[sheet].title == uploadTitle) {
+        if (spreadsheets[sheet].title === uploadTitle) {
           setSpreadsheeturl(spreadsheets[sheet].url)
           setIsDisabled(false);
         }
@@ -25,12 +28,14 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
   }, [files, spreadsheets, uploadTitle]);
 
   const resetState = () => {
+    console.log("reset state for file uploader");
     setFiles(null);
     setUploadTitle('');
     setTimeout(() => setStatus('initial'), 2000);
   }
 
   const handleFileChange = (e) => {
+    console.log("handling file change")
     if (e.target.files) {
       setStatus('initial');
       setFiles(e.target.files);
@@ -38,6 +43,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
   };
 
   const handleUploadData = async () => {
+    console.log("handling upload data")
     if (files && uploadTitle) {
       console.log('Uploading files...');
 
@@ -47,9 +53,10 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
       });
       formData.append('title', uploadTitle);
       formData.append('spreadsheeturl', spreadsheeturl)
-
+      console.log("okay going great: " + formData.getAll('files').toString());
       try {
-        const res = await axios.post('http://localhost:5000/add_data', formData, {
+        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/add_data`, formData, {
+        // const res = await axios.post(`http://backend:5002/add_data`, formData, {
           withCredentials: true,
           headers: {
             'Content-Type':'multipart/form-data'

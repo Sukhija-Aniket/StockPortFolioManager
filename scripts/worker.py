@@ -33,7 +33,9 @@ def callback(ch, method, properties, body):
     
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(os.getenv("RABBITMQ_HOST")))
+credentials = pika.PlainCredentials(os.getenv('RABBITMQ_USERNAME'), os.getenv('RABBITMQ_PASSWORD'))
+print("Connecting to RabbitMQ, credentials={}, host={}".format(credentials, os.getenv('RABBITMQ_HOST')))
+connection = pika.BlockingConnection(pika.ConnectionParameters(os.getenv("RABBITMQ_HOST"), credentials=credentials))
 channel = connection.channel()
 
 channel.queue_declare(queue='task_queue', durable=True)

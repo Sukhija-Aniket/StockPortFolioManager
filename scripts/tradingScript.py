@@ -69,6 +69,19 @@ def transDetails_update_data(data):
         data[TransDetails_constants.BROKERAGE]
     return data
 
+
+def convert_dtypes(df):
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            try:
+                converted_col = df[col].astype(str)
+                converted_col = converted_col.str.replace(',', '', regex=False)
+                converted_col = pd.to_numeric(converted_col, errors='raise')
+                df[col] = converted_col
+            except ValueError:
+                pass
+    return df
+
 def shareProfitLoss_update_data(data):
 
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
@@ -80,8 +93,8 @@ def shareProfitLoss_update_data(data):
     infoMap = {}
     rowData = {}
     # Added the condition to remove key,value pairs created due to class itself.
-    constants_dict = {key: value for key, value in vars(ShareProfitLoss_constants).items(
-    ) if (isinstance(value, str) and not value.startswith('python'))}
+    constants_dict = {key: value for key, value in ShareProfitLoss_constants.__dict__.items() if not key.startswith('__')}
+    print("these are also: ", constants_dict, "this is dict:", ShareProfitLoss_constants.__dict__.items())
     df = pd.DataFrame(columns=list(constants_dict.values()))
     for (transaction_type, name), group in grouped_data:
         if name not in rowData:
@@ -152,8 +165,9 @@ def shareProfitLoss_update_data(data):
             (share_details[ShareProfitLoss_constants.SHARES_BOUGHT] -
              share_details[ShareProfitLoss_constants.SHARES_SOLD])
         })
-        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
-    return df
+        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)    
+    return convert_dtypes(df)
+    
 
 def dailyProfitLoss_update_data(data):
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
@@ -165,8 +179,7 @@ def dailyProfitLoss_update_data(data):
 
     rowData = {}
     dailySpendings = {}
-    constants_dict = {key: value for key, value in vars(DailyProfitLoss_constants).items(
-    ) if (isinstance(value, str) and not value.startswith('python'))}
+    constants_dict = {key: value for key, value in DailyProfitLoss_constants.__dict__.items() if not key.startswith('__')}
     df = pd.DataFrame(columns=list(constants_dict.values()))
     for (date, name), group in grouped_data:
         date = date.strftime(DATE_FORMAT)
@@ -199,7 +212,7 @@ def dailyProfitLoss_update_data(data):
             DailyProfitLoss_constants.LOW: priceDetails[2],
             DailyProfitLoss_constants.CLOSING_PRICE: priceDetails[3],
             DailyProfitLoss_constants.VOLUME: priceDetails[4],
-            DailyProfitLoss_constants.DAILY_SPENDINGS: "",
+            DailyProfitLoss_constants.DAILY_SPENDINGS: 0.0,
         }
         dailySpendings[date] += amountInvested
         rowData[date][DailyProfitLoss_constants.DAILY_SPENDINGS] = dailySpendings[date]
@@ -213,19 +226,19 @@ def dailyProfitLoss_update_data(data):
         data_row = pd.Series({
             DailyProfitLoss_constants.DATE: date,
             DailyProfitLoss_constants.NAME: '',
-            DailyProfitLoss_constants.AVERAGE_PRICE: "",
-            DailyProfitLoss_constants.QUANTITY: "",
-            DailyProfitLoss_constants.AMOUNT_INVESTED: "",
-            DailyProfitLoss_constants.OPENING_PRICE: "",
-            DailyProfitLoss_constants.HIGH: "",
-            DailyProfitLoss_constants.LOW: "",
-            DailyProfitLoss_constants.CLOSING_PRICE: "",
-            DailyProfitLoss_constants.VOLUME: "",
+            DailyProfitLoss_constants.AVERAGE_PRICE: 0.0,
+            DailyProfitLoss_constants.QUANTITY: 0.0,
+            DailyProfitLoss_constants.AMOUNT_INVESTED: 0.0,
+            DailyProfitLoss_constants.OPENING_PRICE: 0.0,
+            DailyProfitLoss_constants.HIGH: 0.0,
+            DailyProfitLoss_constants.LOW: 0.0,
+            DailyProfitLoss_constants.CLOSING_PRICE: 0.0,
+            DailyProfitLoss_constants.VOLUME: 0.0,
             DailyProfitLoss_constants.DAILY_SPENDINGS: share_details[
                 DailyProfitLoss_constants.DAILY_SPENDINGS]
         })
         df = pd.concat([df, data_row.to_frame().T], ignore_index=True)
-    return df
+    return convert_dtypes(df)
 
 def taxation_update_data(data):
     extraCols = [TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
@@ -241,8 +254,7 @@ def taxation_update_data(data):
     global_sell_data = {}
    
     # Added the condition to remove key,value pairs created due to class itself.
-    constants_dict = {key: value for key, value in vars(Taxation_constants).items(
-    ) if (isinstance(value, str) and not value.startswith('python'))}    
+    constants_dict = {key: value for key, value in Taxation_constants.__dict__.items() if not key.startswith('__')} 
 
     df = pd.DataFrame(columns=list(constants_dict.values()))
     
@@ -381,7 +393,7 @@ def taxation_update_data(data):
             Taxation_constants.INTRADAY_INCOME: details[Taxation_constants.INTRADAY_INCOME],
         })
         df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
-    return df    
+    return convert_dtypes(df) 
 
 # Main Program
 if __name__ == "__main__":
@@ -401,7 +413,7 @@ if __name__ == "__main__":
     if input_file is not None and input_file != 'None':
         input_data = pd.read_csv(input_file)
         input_data = format_input_data(input_data)
-    spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials)
+    spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, spreadsheet_file, credentials, None)
     if input_file is not None and input_file != 'None':
         data_already_exists(raw_data, input_data) 
         raw_data = pd.concat([raw_data, input_data], ignore_index=True)

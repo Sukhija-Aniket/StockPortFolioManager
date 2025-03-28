@@ -8,6 +8,19 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+RUN apt-get update && \
+    apt-get install -y libgl1-mesa-glx
+
+RUN pip install multipart
+
+# COPY /etc/ssl/certs/* /app/etc/ssl/certs
+
+# COPY /etc/ssl/cert.pem /app/etc/ssl/cert.pem
+
+# COPY /usr/local/share/ca-certificates/* /app/usr/local/share/ca-certificates
+
+# RUN update-ca-certificates
+
 # Expose the port used by the backend service
 EXPOSE 5000
 

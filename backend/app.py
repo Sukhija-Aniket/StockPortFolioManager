@@ -2,6 +2,8 @@ from flask import Flask
 import os
 from flask_cors import CORS
 
+
+
 app_directory = os.path.dirname(__file__)
 
 from dotenv import load_dotenv
@@ -12,6 +14,7 @@ from database import db
 from routes import initialize_routes
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1000 * 1000
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 app.secret_key = os.getenv('APP_SECRET_KEY')
 app_port=os.getenv('PORT')
@@ -26,4 +29,4 @@ with app.app_context():
 
 initialize_routes(app)
 if __name__ == '__main__':
-    app.run('localhost', port=int(app_port), debug=True)
+    app.run('0.0.0.0', port=int(app_port), debug=True)

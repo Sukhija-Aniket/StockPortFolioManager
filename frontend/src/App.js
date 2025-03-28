@@ -6,17 +6,29 @@ import FileUploader from './components/fileUploader';
 
 
 const App = () => {
+  const REACT_APP_BACKEND_SERVICE = process.env.REACT_APP_BACKEND_SERVICE;
   const [user, setUser] = useState(null);
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [newSpreadsheetTitle, setNewSpreadsheetTitle] = useState('');
   const [isDisabled, setIsDisabled] = useState(true)
 
+  const fetchSpreadsheets = async () => {
+    // Fetch existing spreadsheets
+    try {
+      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets`, { withCredentials: true });
+      console.log("Spreadsheets: ", res)
+      setSpreadsheets(res.data);
+    } catch (error) {
+      console.error('Error fetching spreadsheets:', error);
+    }
+  };
+
   useEffect(() => {
     // Fetch user data if logged in
     const fetchUserData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/user_data', { withCredentials: true });
-        console.log(res.data);
+        const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/user_data`, { withCredentials: true });
+        console.log("Response: ", res.data);
         setUser(res.data);
         fetchSpreadsheets();
       } catch (error) {
@@ -28,14 +40,14 @@ const App = () => {
     else setIsDisabled(true);
 
     fetchUserData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newSpreadsheetTitle]);
 
   const handleSyncData = async () => {
     try {
       const formData = new FormData()
       formData.append('spreadsheets', spreadsheets);
-
-      const res = await axios.post('http://localhost:5000/sync_data', {'spreadsheets': JSON.stringify(spreadsheets) }, {
+      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/sync_data`, {'spreadsheets': JSON.stringify(spreadsheets) }, {
         withCredentials: true,
         headers: {
           'Content-Type': 'application/json'
@@ -48,21 +60,10 @@ const App = () => {
     }
   };
 
-  const fetchSpreadsheets = async () => {
-    // Fetch existing spreadsheets
-    try {
-      const res = await axios.get('http://localhost:5000/spreadsheets', { withCredentials: true });
-      console.log(res)
-      setSpreadsheets(res.data);
-    } catch (error) {
-      console.error('Error fetching spreadsheets:', error);
-    }
-  };
-
   const handleCreateSpreadsheet = async () => {
     // Create new spreadsheet
     try {
-      const res = await axios.post('http://localhost:5000/create_spreadsheet', {
+      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/create_spreadsheet`, {
         title: newSpreadsheetTitle
       }, { withCredentials: true });
       console.log('Created spreadsheet:', res.data);
@@ -75,6 +76,20 @@ const App = () => {
 
   const handleSpreadsheetLinkClick = (url) => {
     window.open(url, '_blank');
+  };
+
+  const handleDeleteClick = async (spreadsheet_url) => {
+    try {
+      console.log("Deleting a spreadsheet with spreadsheetId:", spreadsheet_url);
+      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/remove_spreadsheet`, { 
+        'spreadsheet_url': spreadsheet_url
+      }, { withCredentials: true });
+      console.log('Spreadsheet deleted successfully:', res.data);
+        // Optionally, refresh the table or remove the deleted spreadsheet from the state
+      fetchSpreadsheets();
+    } catch(error) {
+      console.error('Error deleting spreadsheet:', error);
+    }
   };
 
   const deleteAllCookies = () => {
@@ -91,7 +106,7 @@ const App = () => {
       sessionStorage.removeItem('access_token');
       deleteAllCookies();
 
-      await axios.get('http://localhost:5000/logout');
+      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/logout`);
       setUser(null); // Clear user state
       setSpreadsheets([]);
       deleteAllCookies();
@@ -100,6 +115,10 @@ const App = () => {
       console.error('Error signing out:', error);
     }
   };
+
+  if (!user) {
+    console.log("backend service is:", REACT_APP_BACKEND_SERVICE)
+  }
 
   return (
     <Container>
@@ -117,6 +136,7 @@ const App = () => {
                 <th>Title</th>
                 <th>Date Created</th>
                 <th>Spreadsheet Link</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -127,6 +147,11 @@ const App = () => {
                   <td>
                     <Button variant="link" onClick={() => handleSpreadsheetLinkClick(spreadsheet.url)}>
                       Open Spreadsheet
+                    </Button>
+                  </td>
+                  <td>
+                    <Button variant="danger" onClick={() => handleDeleteClick(spreadsheet.url)}>
+                      Delete
                     </Button>
                   </td>
                 </tr>
@@ -176,7 +201,7 @@ const App = () => {
 
       {!user && (
         <div className="text-center py-3">
-          <Button variant="primary" size='lg' href="http://localhost:5000/authorize">
+          <Button variant="primary" size='lg' href={`http://${REACT_APP_BACKEND_SERVICE}/authorize`}>
             Login with Google
           </Button>
         </div>

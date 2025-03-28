@@ -16,7 +16,7 @@ load_dotenv(env_file)
 api_key_file_name = 'tradingprojects-apiKey.json'
 credentials_file = os.path.join(scripts_directory, 'secrets', api_key_file_name)
 
-def upload_data(file_path, typ, spreadsheet_id, creds): 
+def upload_data(file_path, typ, spreadsheet_id, creds, http): 
     valid_path = check_valid_path(file_path)
     if valid_path:
         # Handling User data and preparing raw data
@@ -27,7 +27,7 @@ def upload_data(file_path, typ, spreadsheet_id, creds):
         # Replace out-of-range float values
         # input_data = replace_out_of_range_floats(input_data.to_dict(orient='records'))
         
-        spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, None, creds) if typ == "sheets" else get_sheets_and_data(typ, credentials_file, None, spreadsheet_id, creds)
+        spreadsheet, sheet_names, raw_data = get_sheets_and_data(typ, credentials_file, spreadsheet_id, None, creds, http) if typ == "sheets" else get_sheets_and_data(typ, credentials_file, None, spreadsheet_id, creds, http)
         data_already_exists(raw_data, final_input_data)
         raw_data = pd.concat([raw_data, final_input_data], ignore_index=True)
         
