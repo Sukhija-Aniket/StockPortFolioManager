@@ -11,3 +11,4 @@ scripts/*
 .qodo
 
 .vscode/
+backend/app.log

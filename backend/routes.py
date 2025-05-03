@@ -14,6 +14,18 @@ import google_auth_httplib2
 import httplib2
 import certifi
 http = httplib2.Http(ca_certs=certifi.where(), disable_ssl_certificate_validation=True)
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app_directory = os.path.dirname(__file__)
 scripts_directory = os.path.join(os.path.dirname(app_directory), 'scripts')
@@ -125,7 +137,7 @@ def get_spreadsheets():
 @main_bp.post('/create_spreadsheet') # this is a post request with title
 def create_spreadsheet():
     user = session.get('user')
-    print(f"Session: {session} and user: {user}")
+    logger.info(f"Session: {session} and user: {user}")
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -211,18 +223,18 @@ def remove_spreadsheet():
         return jsonify({'error': 'Unauthorized'}), 401
     
     data = request.get_json()
-    print("this is the data", data)
+    logger.info("this is the data", data)
     spreadsheet_url = data.get('spreadsheet_url')
-    print("here is the spreadsheet url", spreadsheet_url)
+    logger.info("here is the spreadsheet url", spreadsheet_url)
     spreadsheet_id = spreadsheet_url.split('/d/')[1]
-    print("here is the spreadsheet id", spreadsheet_id)
+    logger.info("here is the spreadsheet id", spreadsheet_id)
     
-    print("This is working as the request reaches here")
+    logger.info("This is working as the request reaches here")
     
     if not spreadsheet_id:
         return jsonify({'error': 'Spreadsheet ID is required'}), 400
     
-    print("This is working as the request reaches here")
+    logger.info("This is working as the request reaches here")
     # Fetch the spreadsheet record from the database
     spreadsheet_record = Spreadsheet.query.filter_by(spreadsheet_id=spreadsheet_id, user_id=user['id']).first()
     if not spreadsheet_record:
@@ -233,20 +245,20 @@ def remove_spreadsheet():
     authorized_http = google_auth_httplib2.AuthorizedHttp(credentials_obj, http=http)
     drive_service = build('drive', 'v3', http=authorized_http)
     
-    print("About to delete the spreadsheet record")
+    logger.info("About to delete the spreadsheet record")
     try:
         # Remove the spreadsheet from Google Drive
         drive_service.files().delete(fileId=spreadsheet_id).execute()
     except HttpError as e:
         if e.resp.status == 404:
-            print("Could not delete the spreadsheet as it doesn't exist")
+            logger.info("Could not delete the spreadsheet as it doesn't exist")
         else:
-            print(f"Error removing spreadsheet: {e}")
+            logger.error(f"Error removing spreadsheet: {e}")
             return jsonify({'error': 'Failed to remove spreadsheet'}), 500
     except FileNotFoundError as e:
-        print("Could not delete the spreadsheet as it doesn't exist")
+        logger.info("Could not delete the spreadsheet as it doesn't exist")
     except Exception as e:
-        print(f"Error removing spreadsheet: {e}")
+        logger.error(f"Error removing spreadsheet: {e}")
         return jsonify({'error': 'Failed to remove spreadsheet'}), 500
     try:
         # Remove the spreadsheet record from the database
@@ -255,45 +267,48 @@ def remove_spreadsheet():
         
         return jsonify({"message": "Spreadsheet removed successfully"}), 200
     except Exception as e:
-        print(f"Error removing spreadsheet: {e}")
+        logger.error(f"Error removing spreadsheet: {e}")
         return jsonify({'error': 'Failed to remove spreadsheet'}), 500
 
 
 @main_bp.post('/add_data')
 def add_data():
-    print("here it comes")
-    url = request.form.get('spreadsheeturl')
-    files = request.files.getlist('files')
-    google_id = session.get('user')['google_id']
-    print('HERE IT DOES NOT COME')
-    messages = {}
-    for file in files:
-        if not os.path.exists(os.path.join(app_directory, 'temp')):
-            os.makedirs(os.path.join(app_directory, 'temp'))
-        file_path = os.path.join(app_directory, f'temp/{file.filename}_{google_id}')
-        file.save(file_path)
-        # Run the add_data.py script with the file path and spreadsheet_id as arguments
-        upload_data(os.path.abspath(file_path), 'sheets', url.split('/d/')[1], session.get('credentials'), http)
-    
+    try:
+        logger.info("here it comes")
+        url = request.form.get('spreadsheeturl')
+        files = request.files.getlist('files')
+        google_id = session.get('user')['google_id']
+        logger.info('HERE IT DOES NOT COME')
+        messages = {}
+        for file in files:
+            if not os.path.exists(os.path.join(app_directory, 'temp')):
+                os.makedirs(os.path.join(app_directory, 'temp'))
+            file_path = os.path.join(app_directory, f'temp/{file.filename}_{google_id}')
+            file.save(file_path)
+            # Run the add_data.py script with the file path and spreadsheet_id as arguments
+            upload_data(os.path.abspath(file_path), 'sheets', url.split('/d/')[1], session['credentials'], http)
+    except Exception as e:
+        logger.error(f"exception occured: {e}")
+        return jsonify({"error": str(e)}), 400
     return jsonify({"message": messages}), 200
 
 @main_bp.post('/sync_data')
 def sync_data():
     data = request.get_json()
     spreadsheets = json.loads(data.get('spreadsheets'))
-    print("Syncing Data for spreadsheetID: ", spreadsheets)
+    logger.info("Syncing Data for spreadsheetID: ", spreadsheets)
     
     credentials = pika.PlainCredentials(os.getenv('RABBITMQ_USERNAME'), os.getenv('RABBITMQ_PASSWORD'))
     connection = pika.BlockingConnection(pika.ConnectionParameters(os.getenv("RABBITMQ_HOST"), credentials=credentials))
     channel = connection.channel()
-    print("Connection has been established to channel: ", channel)
+    logger.info("Connection has been established to channel: ", channel)
     channel.queue_declare(queue='task_queue', durable=True)
     
     message = json.dumps({
         'spreadsheets': spreadsheets,
         'credentials': session.get('credentials')
         })
-    print("Publishing message to RabbitMQ: ", message)
+    logger.info("Publishing message to RabbitMQ: ", message)
     channel.basic_publish(
         exchange='',
         routing_key='task_queue',
@@ -301,10 +316,15 @@ def sync_data():
         properties=pika.BasicProperties(
             delivery_mode=pika.DeliveryMode.Persistent,  # make message persistent
         ))
-    print("Message published successfully")
+    logger.info("Message published successfully")
     
     connection.close()
     return jsonify({"message": "Data queued successfully"}), 200
+
+@main_bp.get('/test')
+def test():
+    logger.info("Test Successful")
+    return jsonify({"message": "Test successful"}), 200
 
 def initialize_routes(app):
     app.register_blueprint(main_bp)

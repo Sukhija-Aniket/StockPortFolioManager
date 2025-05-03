@@ -8,41 +8,46 @@ from google.auth.transport.requests import Request
 import openpyxl
 import json
 import numpy as np
-import google_auth_httplib2
 import httplib2
 import certifi
+import logging
+from google.auth.transport.requests import AuthorizedSession
+
 
 # Create an HTTP client with certifi CA bundle
 http = httplib2.Http(ca_certs=certifi.where(), disable_ssl_certificate_validation=True)
-
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 # Functions for sheets
 def authenticate_and_get_sheets(credentials_file, spreadsheet_id, credentials=None, http=None):
-    print("Authenticating Sheets")
+    logger.info(f"Authenticating Sheets: {spreadsheet_id}")
     if credentials is not None:
         try:
-            credentials_obj = Credentials.from_authorized_user_info(credentials)
-            if credentials_obj and credentials_obj.expired and credentials_obj.refresh_token:
-                credentials_obj.refresh(Request())
-            else:
-                raise ValueError("OAuth Credentials are not available or invalid")
-            
-            # authorized_http = google_auth_httplib2.AuthorizedHttp(credentials_obj, http=http)
-            # service = build('sheets', 'v4', http=authorized_http)
-            # spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-            # authorized_http = google_auth_httplib2.AuthorizedHttp(credentials_obj, http=http)
-            # gc = gspread.authorize(credentials_obj)
-            print('okay coming here')
-            # gc.session = authorized_http
-            gc = gspread.authorize(credentials_obj)
+            logger.info("here")
+            credentials_obj = Credentials(**credentials)
+            logger.info('okay coming here')   
+            # Use the custom HTTP client with disabled SSL validation
+             # Create a Session that skips SSL checks
+            session = AuthorizedSession(credentials_obj) 
+            session.verify = False  # ✱ disable cert validation ✱
+            gc = gspread.Client(auth=credentials_obj, session=session)
+            logger.info("authorized")
             spreadsheet = gc.open_by_key(spreadsheet_id)
-            
             
             return spreadsheet
         except Exception as e:
-            print(f"Unable to authorize spreadsheet {e}, exiting...")
-            exit()
-            
+            logger.error("why the fuck is this happening")
+            logger.error(f"Unable to authorize spreadsheet {e}, exiting...")
+            raise RuntimeError(f"Authorization Failed for spreadsheets: {e}")
     else:
+        logger.info("oh actually here")
         gc = gspread.service_account(filename=credentials_file)
         spreadsheet = gc.open_by_key(spreadsheet_id)
         return spreadsheet
@@ -81,7 +86,7 @@ def update_sheet(spreadsheet, sheet_name, data, formatting_function=None):
     display_and_format_sheets(sheet, data)
     if formatting_function is not None:
         formatting_function(spreadsheet, sheet)
-    print(f"{sheet_name} updated Successfully!")
+    logger.info(f"{sheet_name} updated Successfully!")
 
 def replace_out_of_range_floats(obj):
     if isinstance(obj, float):
@@ -149,7 +154,7 @@ def update_excel(spreadsheet, sheet_name, data, formatting_function=None):
     display_and_format_excel(sheet, data)
     if formatting_function is not None:
         formatting_function(spreadsheet, sheet)
-    print(f"{sheet_name} updated Successfully!")
+    logger.info(f"{sheet_name} updated Successfully!")
     
 def display_and_format_excel(sheet, data):
     data = data.round(4)
@@ -193,7 +198,7 @@ def data_already_exists(raw_data, input_data):
         ].shape[0] > 0
 
         if is_duplicate:
-            print("Orders Data Already Exists in the file, Exiting...")
+            logger.info("Orders Data Already Exists in the file, Exiting...")
             exit()
 
 def get_data_date(date):
@@ -236,13 +241,13 @@ def get_valid_path(path):
     if path is None:
         return None
     if not os.path.exists(path):
-        print("The Provided Path for file downloaded from Zerodha does not exist!")
+        logger.error("The Provided Path for file downloaded from Zerodha does not exist!")
         path = input("Enter correct Absolute Path, including /home: ")
         path = get_valid_path(path)   
     return path
 
 def update_env_file(key, value, env_file):
-    print("updating env file")
+    logger.info("updating env file")
     with open(env_file, 'r') as file:
         lines = file.readlines()    
 
@@ -252,7 +257,7 @@ def update_env_file(key, value, env_file):
             line = f"{key}={value}\n"
         updated_lines.append(line)
 
-    print("Lines updated are: ", updated_lines)
+    logger.info("Lines updated are: ", updated_lines)
     with open(env_file, 'w') as file:
         file.writelines(updated_lines)
 
@@ -262,7 +267,7 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
     value = ''
     key = 'EXCEL_FILE_NAME'
     credentials=None
-    print("Args length: ", len(args), "and Args: ", args)
+    logger.info("Args length: ", len(args), "and Args: ", args)
     if len(args) > 4:
         credentials = json.loads(args[4])       
     if len(args) > 3:
@@ -279,16 +284,16 @@ def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
             input_file = args[1]
         else:
             input_file = input("Please enter the absolute path of the file downloaded from Zerodha: ")
-        print("\nPlease select 'excel' or 'sheets, leave empty to use excel as default")
+        logger.info("\nPlease select 'excel' or 'sheets, leave empty to use excel as default")
         typ = input("Enter your choice: ")
         typ = typ.lower()
         if (typ == 'excel' or typ == ''):
-            print(
+            logger.info(
                 f"{excel_file_name} is the default file, enter name below if you wish to change it, leave empty otherwise")
             value = input("Enter your choice: ")
 
         elif (typ== 'sheets'):
-            print(f"{spreadsheet_id} is the default google sheet, enter spreadsheet_id below if you wish to change it, leave empty otherwise")
+            logger.info(f"{spreadsheet_id} is the default google sheet, enter spreadsheet_id below if you wish to change it, leave empty otherwise")
             value = input("Enter your choice: ")
             key = 'SPREADSHEET_ID'
 

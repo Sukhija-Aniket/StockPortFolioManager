@@ -15,6 +15,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
     setIsDisabled(true);
     setSpreadsheeturl('');
     console.log("here also")
+    console.log(files);
     if (files) {
       console.log(spreadsheets)
       for (let sheet in spreadsheets) {
@@ -29,18 +30,32 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
 
   const resetState = () => {
     console.log("reset state for file uploader");
-    setFiles(null);
+    // setFiles(null);
     setUploadTitle('');
     setTimeout(() => setStatus('initial'), 2000);
   }
 
   const handleFileChange = (e) => {
-    console.log("handling file change")
+    if (status === 'uploading') {
+      return;
+    }
+    setStatus('uploading')
+    console.log("handling file change");
+    console.log("okay getting updated", e);
+    console.log(e.target.files);
     if (e.target.files) {
+      console.log("entering here as well");
       setStatus('initial');
       setFiles(e.target.files);
+      // e.target.value = null;
     }
   };
+
+  const handleTitleChange = (e) => {
+    console.log("handling title change")
+    setUploadTitle(e.target.value);
+  };
+  
 
   const handleUploadData = async () => {
     console.log("handling upload data")
@@ -108,7 +123,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
               type="text"
               placeholder="Enter spreadsheet title"
               value={uploadTitle}
-              onChange={(e) => setUploadTitle(e.target.value)}
+              onChange={(e) => handleTitleChange(e)}
               className="mr-sm-2"
             />
           </Col>

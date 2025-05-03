@@ -1,7 +1,17 @@
 import pandas as pd
 import os
 import sys
-
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 scripts_directory = os.path.dirname(__file__)
 

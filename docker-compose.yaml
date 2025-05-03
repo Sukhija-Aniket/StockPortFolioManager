@@ -26,7 +26,7 @@ services:
     build:
       context: ./frontend
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app # I have done volume mapping here, hence the frontend build gets affected in realTime
     environment:
     # change it to a public domain when bought, and add in credentials.json file and update google OAuth credentials
       - REACT_APP_BACKEND_SERVICE=localhost:5000
