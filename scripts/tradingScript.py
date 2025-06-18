@@ -2,6 +2,11 @@ import pandas as pd
 import os
 import sys
 from datetime import datetime
+import logging
+
+# Setup logging
+from logging_config import setup_logging
+logger = setup_logging()
 
 scripts_directory = os.path.dirname(__file__)
 # parent_directory = os.path.dirname(scripts_directory)
@@ -21,12 +26,14 @@ spreadsheet_id = os.getenv('SPREADSHEET_ID')
 spreadsheet_file = os.path.join(scripts_directory, 'assets', excel_file_name)
 credentials_file = os.path.join(scripts_directory, 'secrets', api_key_file_name)
 
+logger.info("Trading script initialized with environment variables loaded")
+
 # Required Utility Functions
 
 def script_already_executed():
     last_execution_date = os.getenv(f'LAST_EXECUTION_DATE_{typ.upper()}')
     if (last_execution_date == datetime.now().strftime(DATE_FORMAT)):
-        print("The script has been already been executed today, Exiting...")
+        logger.info("The script has been already been executed today, Exiting...")
         exit()
     update_env_file(f'LAST_EXECUTION_DATE_{typ.upper()}', last_execution_date, env_file)
 
@@ -83,7 +90,7 @@ def convert_dtypes(df):
     return df
 
 def shareProfitLoss_update_data(data):
-
+    logger.info("Updating Share Profit Loss Data")
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
     data = initialize_data(data, extraCols=extraCols)
@@ -94,7 +101,7 @@ def shareProfitLoss_update_data(data):
     rowData = {}
     # Added the condition to remove key,value pairs created due to class itself.
     constants_dict = {key: value for key, value in ShareProfitLoss_constants.__dict__.items() if not key.startswith('__')}
-    print("these are also: ", constants_dict, "this is dict:", ShareProfitLoss_constants.__dict__.items())
+    logger.info("these are also: %s this is dict: %s", constants_dict, ShareProfitLoss_constants.__dict__.items())
     df = pd.DataFrame(columns=list(constants_dict.values()))
     for (transaction_type, name), group in grouped_data:
         if name not in rowData:
@@ -170,6 +177,7 @@ def shareProfitLoss_update_data(data):
     
 
 def dailyProfitLoss_update_data(data):
+    logger.info("Updating Daily Profit Loss Data")
     extraCols = [TransDetails_constants.STT, TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, TransDetails_constants.INTRADAY_COUNT]
     data = initialize_data(data, extraCols)
@@ -241,6 +249,7 @@ def dailyProfitLoss_update_data(data):
     return convert_dtypes(df)
 
 def taxation_update_data(data):
+    logger.info("Updating Taxation Data")
     extraCols = [TransDetails_constants.GST, TransDetails_constants.SEBI_TRANSACTION_CHARGES,
                  TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES, TransDetails_constants.BROKERAGE, TransDetails_constants.STAMP_DUTY, TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, TransDetails_constants.STOCK_EXCHANGE]
     data = initialize_data(data, extraCols=extraCols)
