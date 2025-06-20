@@ -3,6 +3,8 @@ import pika
 import json
 from config import Config
 from utils import upload_data
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +61,11 @@ class DataService:
             logger.error(f"Error sending task to worker: {e}")
             raise
     
-    def process_data_upload(self, file_path, typ, spreadsheet_id, credentials, http):
+    def process_data_upload(self, file_path, typ, spreadsheet_id, credentials):
         """Process data upload using the shared library"""
+        manager = SheetsManager(credentials) if typ == 'sheets' else ExcelManager()
         try:
-            return upload_data(file_path, typ, spreadsheet_id, credentials, http)
+            return manager.upload_data(file_path, spreadsheet_id)
         except Exception as e:
             logger.error(f"Error processing data upload: {e}")
             raise

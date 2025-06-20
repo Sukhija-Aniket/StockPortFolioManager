@@ -1,12 +1,8 @@
 import pika
 import json
 import asyncio
-import aiofiles
-import logging
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import os
-import sys
 
 # Setup logging
 from utils.logging_config import setup_logging
@@ -14,7 +10,7 @@ logger = setup_logging(__name__)
 
 # Import configuration and shared library
 from config import Config
-from stock_portfolio_shared.utils.common import CommonUtils
+from stock_portfolio_shared.utils.common_utils import CommonUtils
 
 # Import the trading service
 from services.trading_service import TradingService

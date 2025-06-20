@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 
 # Setup logging
-from worker.constants import TransDetails_constants, Raw_constants, DailyProfitLoss_constants, Taxation_constants
+from worker.models.constants import TransDetails_constants, Raw_constants, DailyProfitLoss_constants, Taxation_constants
 from utils.logging_config import setup_logging
 logger = setup_logging(__name__)
 
@@ -13,10 +13,10 @@ logger = setup_logging(__name__)
 from config import Config
 from services.data_processing_service import DataProcessingService
 from stock_portfolio_shared.constants import DATE_FORMAT, SELL, Raw_constants, Data_constants
-from stock_portfolio_shared.utils.data_processing import DataProcessor
-from stock_portfolio_shared.utils.common import CommonUtils
-from stock_portfolio_shared.utils.sheets import SheetsManager
-from stock_portfolio_shared.utils.excel import ExcelManager
+from stock_portfolio_shared.utils.data_processor import DataProcessor
+from stock_portfolio_shared.utils.common_utils import CommonUtils
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
 
 # Initialize configuration and services
 config = Config()
@@ -29,8 +29,6 @@ excel_manager = ExcelManager()
 scripts_directory = os.path.dirname(__file__)
 # parent_directory = os.path.dirname(scripts_directory)
 # sys.path.append(parent_directory)
-
-from constants import *
 
 # Important Information
 from dotenv import load_dotenv
@@ -76,7 +74,7 @@ def process_daily_profit_loss(data):
         TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, 
         TransDetails_constants.INTRADAY_COUNT
     ]
-    data = data_processing_service.formatting_service.initialize_data(data, extra_cols=extra_cols)
+    data = data_processing_service.initialize_data(data, extra_cols=extra_cols)
     
     # Convert date for sorting
     data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=config.DATE_FORMAT)
@@ -157,7 +155,7 @@ def process_taxation(data):
         TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, 
         TransDetails_constants.INTRADAY_COUNT
     ]
-    data = data_processing_service.formatting_service.initialize_data(data, extra_cols=extra_cols)
+    data = data_processing_service.initialize_data(data, extra_cols=extra_cols)
     
     # Group by name
     grouped_data = data.groupby(Raw_constants.NAME)

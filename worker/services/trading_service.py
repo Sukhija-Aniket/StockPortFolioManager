@@ -7,7 +7,7 @@ import os
 import hashlib
 import json
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 
@@ -19,10 +19,10 @@ logger = setup_logging(__name__)
 from config import Config
 from services.data_processing_service import DataProcessingService
 from stock_portfolio_shared.constants import Raw_constants
-from stock_portfolio_shared.utils.data_processing import DataProcessor
-from stock_portfolio_shared.utils.common import CommonUtils
-from stock_portfolio_shared.utils.sheets import SheetsManager
-from stock_portfolio_shared.utils.excel import ExcelManager
+from stock_portfolio_shared.utils.data_processor import DataProcessor
+from stock_portfolio_shared.utils.common_utils import CommonUtils
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
 
 # Import constants
 from models.constants import TransDetails_constants, Raw_constants, DailyProfitLoss_constants, Taxation_constants
@@ -44,8 +44,8 @@ class TradingService:
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         
         # Environment setup
-        self.scripts_directory = os.path.dirname(os.path.dirname(__file__))
-        self.env_file = os.path.join(self.scripts_directory, 'secrets', '.env')
+        self.worker_directory = os.path.dirname(os.path.dirname(__file__))
+        self.env_file = os.path.join(self.worker_directory, 'secrets', '.env')
         
         logger.info(f"TradingService initialized with {max_workers} workers")
     
@@ -116,7 +116,8 @@ class TradingService:
             results = self._process_data_parallel(sheet_names, raw_data)
             
             # Update spreadsheet with results
-            self._update_spreadsheet(spreadsheet, results, spreadsheet_type)
+            formatting_funcs = self.sheets_manager.get_formatting_funcs()
+            self._update_spreadsheet(spreadsheet, results, spreadsheet_type, formatting_funcs)
             
             # Save execution record
             self._save_execution_record(spreadsheet_id, self._get_data_hash(raw_data), results)
@@ -140,7 +141,7 @@ class TradingService:
             raw_data = self.sheets_manager.read_data_from_sheets(spreadsheet, sheet_names[0])
         else:
             # Excel processing
-            excel_file = os.path.join(self.scripts_directory, 'assets', spreadsheet_id)
+            excel_file = os.path.join(self.worker_directory, 'assets', spreadsheet_id)
             spreadsheet = self.excel_manager.load_workbook(excel_file)
             sheet_names = spreadsheet.sheetnames
             raw_data = self.excel_manager.read_data_from_excel(spreadsheet, sheet_names[0])
@@ -340,7 +341,7 @@ class TradingService:
         return df
     
     def _update_spreadsheet(self, spreadsheet, results: Dict[str, pd.DataFrame], 
-                          spreadsheet_type: str):
+                          spreadsheet_type: str, formatting_funcs: Dict[str, Callable]):
         """Update spreadsheet with processed results"""
         logger.info(f"Updating spreadsheet with {len(results)} processed datasets")
         
@@ -349,9 +350,9 @@ class TradingService:
             logger.info(f"Updating sheet {sheet_name} with {len(data)} rows")
             if not data.empty:
                 if spreadsheet_type == 'sheets':
-                    self.sheets_manager.update_sheet(spreadsheet, f"{sheet_name}", data)
+                    self.sheets_manager.update_sheet(spreadsheet, f"{sheet_name}", data, formatting_funcs[sheet_name])
                 else:
-                    self.excel_manager.update_excel(spreadsheet, f"{sheet_name}", data)
+                    self.excel_manager.update_excel(spreadsheet, f"{sheet_name}", data, formatting_funcs[sheet_name])
     
     def _script_already_executed(self, spreadsheet_type: str) -> bool:
         """Check if script has already been executed today"""

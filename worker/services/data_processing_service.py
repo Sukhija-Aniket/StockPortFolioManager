@@ -5,9 +5,8 @@ from models.constants import TransDetails_constants, Raw_constants, ShareProfitL
 from config import Config
 from services.calculation_service import CalculationService
 from services.market_data_service import MarketDataService
-from services.formatting_service import FormattingService
-from stock_portfolio_shared.utils.sheets import SheetsManager
-from stock_portfolio_shared.utils.excel import ExcelManager
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +17,26 @@ class DataProcessingService:
         self.config = Config()
         self.calculation_service = CalculationService()
         self.market_data_service = MarketDataService()
-        self.formatting_service = FormattingService()
         self.sheets_manager = SheetsManager()
         self.excel_manager = ExcelManager()
     
+    
+    def initialize_data(self, data, extra_cols=None, sort_list=None):
+        """Initialize data with additional columns and sorting"""
+        try:
+            if extra_cols:
+                for col in extra_cols:
+                    if col not in data.columns:
+                        data[col] = 0
+            
+            if sort_list:
+                data = data.sort_values(by=sort_list)
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"Error initializing data: {e}")
+            raise
     def _safe_numeric_conversion(self, data, column):
         """Safely convert column to numeric values"""
         try:
@@ -44,7 +59,7 @@ class DataProcessingService:
             
             # Sort data
             sort_list = [Raw_constants.NAME, Raw_constants.DATE, TransDetails_constants.TRANSACTION_TYPE]
-            data = self.formatting_service.initialize_data(data, sort_list=sort_list)
+            data = self.initialize_data(data, sort_list=sort_list)
             
             # Update intraday count
             data = self.calculation_service.update_intraday_count(data)
@@ -89,6 +104,20 @@ class DataProcessingService:
         except Exception as e:
             logger.error(f"Error processing transaction details: {e}")
             raise
+        
+        
+    def get_spl_row(self):
+        """Get default Share Profit Loss row"""
+        return {
+            ShareProfitLoss_constants.DATE: self.config.DEFAULT_DATE,
+            ShareProfitLoss_constants.AVERAGE_BUY_PRICE: 0,
+            ShareProfitLoss_constants.AVERAGE_SALE_PRICE: 0,
+            ShareProfitLoss_constants.AVERAGE_COST_OF_SOLD_SHARES: 0,
+            ShareProfitLoss_constants.SHARES_BOUGHT: 0,
+            ShareProfitLoss_constants.SHARES_SOLD: 0,
+            ShareProfitLoss_constants.TOTAL_INVESTMENT: 0,
+            ShareProfitLoss_constants.CURRENT_INVESTMENT: 0
+        }
     
     def process_share_profit_loss(self, data):
         """Process share profit loss data"""
@@ -104,7 +133,7 @@ class DataProcessingService:
                 TransDetails_constants.DP_CHARGES, TransDetails_constants.INTRADAY_COUNT, 
                 TransDetails_constants.STOCK_EXCHANGE
             ]
-            data = self.formatting_service.initialize_data(data, extra_cols=extra_cols)
+            data = self.initialize_data(data, extra_cols=extra_cols)
             
             # Group by transaction type and name
             grouped_data = data.groupby([TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME])
@@ -119,7 +148,7 @@ class DataProcessingService:
             
             for (transaction_type, name), group in grouped_data:
                 if name not in row_data:
-                    row_data[name] = self.formatting_service.get_spl_row()
+                    row_data[name] = self.get_spl_row()
                     info_map[name] = {}
                 
                 # Process transactions - pass the DataFrame group directly instead of converting to list

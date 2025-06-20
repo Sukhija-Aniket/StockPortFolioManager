@@ -17,8 +17,11 @@ def require_auth(f):
     """Decorator to require authentication"""
     def decorated_function(*args, **kwargs):
         user = session.get('user')
+        credentials = session.get('credentials')
         if not user:
             return jsonify({'error': 'Unauthorized'}), 401
+        if not credentials:
+            return jsonify({'error': 'No credentials found'}), 401
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
@@ -31,10 +34,8 @@ def upload_data():
         user = session.get('user')
         credentials = session.get('credentials')
         
-        if not credentials:
-            return jsonify({'error': 'No credentials found'}), 401
-        
         # Check if file was uploaded
+        # TODO:Improve later for multiple files.
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
         
@@ -59,24 +60,10 @@ def upload_data():
             temp_file_path = temp_file.name
         
         try:
-            # Convert credentials dict to Credentials object
-            from google.oauth2.credentials import Credentials
-            creds_obj = Credentials(**credentials)
-            
-            # Create authorized HTTP
-            import google_auth_httplib2
-            import httplib2
-            import certifi
-            http = httplib2.Http(ca_certs=certifi.where(), disable_ssl_certificate_validation=True)
-            authorized_http = google_auth_httplib2.AuthorizedHttp(creds_obj, http=http)
-            
-            # Process data upload
             data_service.process_data_upload(
                 temp_file_path, 
-                'sheets', 
                 spreadsheet_id, 
-                credentials, 
-                authorized_http
+                credentials
             )
             
             return jsonify({'message': 'Data uploaded successfully'})
@@ -99,33 +86,24 @@ def sync_data():
     try:
         user = session.get('user')
         credentials = session.get('credentials')
-        logger.info("reaching here")
-        
-        if not credentials:
-            return jsonify({'error': 'No credentials found'}), 401
         
         data = request.get_json()
         logger.info("this is the data", data)
         spreadsheets = data.get('spreadsheets', [])
-        logger.info("reaching here 2")
         
         if not spreadsheets:
             return jsonify({'error': 'No spreadsheets provided'}), 400
-        logger.info("reaching here 3")
         # Verify all spreadsheets belong to user
         for spreadsheet_data in spreadsheets:
             logger.info("this is the spreadsheet data", spreadsheet_data)
             spreadsheet_id = spreadsheet_data.get('url', '').split('/d/')[1] if '/d/' in spreadsheet_data.get('url', '') else None
             if not spreadsheet_id:
                 return jsonify({'error': 'Invalid spreadsheet URL'}), 400
-            logger.info("reaching here 4")
             spreadsheet = spreadsheet_service.get_spreadsheet_by_id(spreadsheet_id, user['id'])
             if not spreadsheet:
                 return jsonify({'error': f'Spreadsheet {spreadsheet_data.get("title")} not found or access denied'}), 404
-            logger.info("reaching here 5")
         # Send task to worker
         data_service.send_to_worker(spreadsheets, credentials)
-        logger.info("reaching here 6")
         return jsonify({'message': 'Sync task queued successfully'})
         
     except Exception as e:

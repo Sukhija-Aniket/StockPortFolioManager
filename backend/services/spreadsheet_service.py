@@ -4,7 +4,7 @@ from extensions import db
 from models.spreadsheet import Spreadsheet
 from models.user import User
 from services.google_service import GoogleService
-from stock_portfolio_shared.utils.sheets import SheetsManager
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 
 logger = logging.getLogger(__name__)
 

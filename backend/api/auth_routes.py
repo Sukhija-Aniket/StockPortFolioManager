@@ -2,7 +2,7 @@ from flask import Blueprint, redirect, session, request, jsonify
 from services.google_service import GoogleService
 from services.user_service import UserService
 from config import Config
-from stock_portfolio_shared.utils.sheets import SheetsManager
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 import logging
 
 logger = logging.getLogger(__name__)
