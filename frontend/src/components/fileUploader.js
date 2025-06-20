@@ -64,14 +64,12 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
 
       const formData = new FormData();
       [...files].forEach((file) => {
-        formData.append('files', file);
+        formData.append('file', file);
       });
-      formData.append('title', uploadTitle);
-      formData.append('spreadsheeturl', spreadsheeturl)
-      console.log("okay going great: " + formData.getAll('files').toString());
+      formData.append('spreadsheet_id', spreadsheeturl.split('/d/')[1]?.split('/')[0]);
+      console.log("okay going great: " + formData.getAll('file').toString());
       try {
-        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/add_data`, formData, {
-        // const res = await axios.post(`http://backend:5002/add_data`, formData, {
+        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/upload`, formData, {
           withCredentials: true,
           headers: {
             'Content-Type':'multipart/form-data'

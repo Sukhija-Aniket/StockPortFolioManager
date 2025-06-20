@@ -2,11 +2,18 @@ FROM python:3.8
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy shared package first
+COPY shared /app/shared
 
+# Install shared package
+RUN pip install -e /app/shared
+
+# Copy requirements and install dependencies
+COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
+# Copy backend code
+COPY backend/ .
 
 RUN apt-get update && \
     apt-get install -y libgl1-mesa-glx

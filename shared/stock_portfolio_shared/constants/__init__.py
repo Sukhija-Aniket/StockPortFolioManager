@@ -1,0 +1,105 @@
+"""
+Shared constants for Stock Portfolio Manager
+"""
+
+class Order_constants:
+    DATE = 'Time'
+    TYPE = 'Type'
+    NAME = 'Instrument'
+    PRODUCT = 'Product'
+    QUANTITY = 'Qty.'
+    PRICE = 'Avg. price'
+    STATUS = 'Status'
+    
+class Data_constants:
+    NAME = 'symbol'
+    ISIN = 'isin'
+    DATE = 'trade_date'
+    STOCK_EXCHANGE = 'exchange'
+    SEGMENT = 'segment'
+    SERIES = 'series'
+    TYPE = 'trade_type'
+    AUCTION = 'auction'
+    QUANTITY = 'quantity'
+    PRICE = 'price'
+    TRADE_ID = 'trade_id'
+    ORDER_ID = 'order_id'
+    EXECUTION_TIME = 'order_execution_time'
+
+class Raw_constants:
+    DATE = 'Date'
+    NAME = 'Name'
+    PRICE = 'Price'
+    QUANTITY = 'Quantity'
+    NET_AMOUNT = 'Net Amount'
+    STOCK_EXCHANGE = 'Stock Exchange'
+
+class TransDetails_constants:
+    DATE = 'Date'
+    NAME = 'Name'
+    PRICE = 'Price'
+    QUANTITY = 'Quantity'
+    NET_AMOUNT = 'Net Amount'
+    STOCK_EXCHANGE = 'Stock Exchange'
+    TRANSACTION_TYPE = 'Transaction Type'
+    INTRADAY_COUNT = 'Intraday Count'
+    STT = 'STT'
+    SEBI_TRANSACTION_CHARGES = 'SEBI Transaction Charges'
+    EXCHANGE_TRANSACTION_CHARGES = 'Exchange Transaction Charges'
+    GST = 'GST'
+    BROKERAGE = 'Brokerage'
+    STAMP_DUTY = 'Stamp Duty'
+    DP_CHARGES = 'DP_Charges'
+    FINAL_AMOUNT = 'Final Amount'
+
+class ShareProfitLoss_constants:
+    DATE = 'Date'
+    NAME = 'Name'
+    AVERAGE_BUY_PRICE = 'Average Buy Price'
+    AVERAGE_SALE_PRICE = 'Average Sale Price'
+    AVERAGE_COST_OF_SOLD_SHARES = 'Average Cost of Sold Shares'
+    SHARES_BOUGHT = 'Shares Bought'
+    SHARES_SOLD = 'Shares Sold'
+    SHARES_REMAINING = 'Shares Remaining'
+    PROFIT_PER_SHARE = 'Profit per Share'
+    NET_PROFIT = 'Net Profit'
+    TOTAL_INVESTMENT = 'Total Investment'
+    CURRENT_INVESTMENT = 'Current Investment'
+    CLOSING_PRICE = 'Closing Price'
+    HOLDINGS = 'Holdings'
+
+class DailyProfitLoss_constants:
+    DATE = 'Date'
+    NAME = 'Name'
+    AVERAGE_PRICE = 'Average Price'
+    QUANTITY = 'Quantity'
+    AMOUNT_INVESTED = 'Amount Invested'
+    OPENING_PRICE = 'Opening Price'
+    HIGH = 'High'
+    LOW = 'Low'
+    CLOSING_PRICE = 'Closing Price'
+    VOLUME = 'Volume'
+    DAILY_SPENDINGS = 'Daily Spendings'
+
+class Taxation_constants:
+    DATE = 'Date'
+    NAME = 'Name'
+    LTCG = 'LTCG'
+    STCG = 'STCG'
+    INTRADAY_INCOME = 'Intraday Income'
+
+# Extra Constants
+BUY = 'BUY'
+SELL = 'SELL'
+DEFAULT_DATE = '01/01/2020'
+BSE = 'BSE'
+NSE = 'NSE'
+DATE_FORMAT = '%m/%d/%Y'
+YFINANCE_DATE_FORMAT = '%Y-%m-%d'
+ORDER_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATA_TIME_FORMAT = "%Y-%m-%d"
+GLOBAL_QUOTE = 'GLOBAL_QUOTE'
+COMPLETE = 'COMPLETE'
+DOT_NS = '.NS'
+DOT_BO = '.BO'
+CELL_RANGE = 'A2:P999' 

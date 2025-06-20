@@ -1,0 +1,89 @@
+import logging
+import pika
+import json
+from config import Config
+from utils import upload_data
+
+logger = logging.getLogger(__name__)
+
+class DataService:
+    """Service class for handling data processing and upload operations"""
+    
+    def __init__(self):
+        self.rabbitmq_config = {
+            'host': Config.RABBITMQ_HOST,
+            'username': Config.RABBITMQ_USERNAME,
+            'password': Config.RABBITMQ_PASSWORD
+        }
+    
+    def send_to_worker(self, spreadsheets, credentials):
+        """Send data processing task to worker via RabbitMQ"""
+        try:
+            # Create connection to RabbitMQ
+            credentials_rabbitmq = pika.PlainCredentials(
+                self.rabbitmq_config['username'],
+                self.rabbitmq_config['password']
+            )
+            
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=self.rabbitmq_config['host'],
+                    credentials=credentials_rabbitmq
+                )
+            )
+            
+            channel = connection.channel()
+            channel.queue_declare(queue='task_queue', durable=True)
+            
+            # Prepare message
+            message = {
+                'spreadsheets': spreadsheets,
+                'credentials': credentials
+            }
+            
+            # Send message
+            channel.basic_publish(
+                exchange='',
+                routing_key='task_queue',
+                body=json.dumps(message),
+                properties=pika.BasicProperties(
+                    delivery_mode=pika.DeliveryMode.Persistent
+                )
+            )
+            
+            connection.close()
+            logger.info(f"Sent task to worker for {len(spreadsheets)} spreadsheets")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending task to worker: {e}")
+            raise
+    
+    def process_data_upload(self, file_path, typ, spreadsheet_id, credentials, http):
+        """Process data upload using the shared library"""
+        try:
+            return upload_data(file_path, typ, spreadsheet_id, credentials, http)
+        except Exception as e:
+            logger.error(f"Error processing data upload: {e}")
+            raise
+    
+    def validate_file_upload(self, file):
+        """Validate uploaded file"""
+        try:
+            if not file:
+                raise ValueError("No file provided")
+            
+            # Check file size
+            if file.content_length and file.content_length > Config.MAX_CONTENT_LENGTH:
+                raise ValueError("File too large")
+            
+            # Check file extension
+            allowed_extensions = {'.csv', '.xlsx', '.xls'}
+            if not any(file.filename.lower().endswith(ext) for ext in allowed_extensions):
+                raise ValueError("Invalid file type. Only CSV and Excel files are allowed")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"File validation error: {e}")
+            raise 

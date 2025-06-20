@@ -1,0 +1,75 @@
+from flask import Blueprint, redirect, session, request, jsonify
+from services.google_service import GoogleService
+from services.user_service import UserService
+from config import Config
+from stock_portfolio_shared.utils.sheets import SheetsManager
+import logging
+
+logger = logging.getLogger(__name__)
+
+auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+google_service = GoogleService()
+user_service = UserService()
+sheets_manager = SheetsManager()
+
+@auth_bp.route('/authorize')
+def authorize():
+    """Initiate Google OAuth flow"""
+    try:
+        authorization_url, state = google_service.get_authorization_url(state=None)
+        session['state'] = state
+        return redirect(authorization_url)
+    except Exception as e:
+        logger.error(f"Authorization error: {e}")
+        return jsonify({'error': 'Authorization failed'}), 500
+
+@auth_bp.route('/oauth2callback')
+def oauth2callback():
+    """Handle OAuth callback from Google"""
+    try:
+        # Verify state parameter
+        if not session.get('state') == request.args.get('state'):
+            return redirect(f"http://{Config.FRONTEND_SERVICE}/")
+        
+        # Exchange code for token
+        credentials = google_service.exchange_code_for_token(request.url)
+        
+        # Get user profile
+        profile = google_service.get_user_profile(credentials)
+        
+        # Get or create user
+        user = user_service.get_or_create_user(profile)
+        
+        # Store credentials and user info in session
+        session['credentials'] = sheets_manager.credentials_to_dict(credentials)
+        logger.info("session['credentials']: %s", session['credentials'])
+        session['user'] = user_service.create_session_data(user)
+        
+        return redirect(f"http://{Config.FRONTEND_SERVICE}/")
+        
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        return redirect(f"http://{Config.FRONTEND_SERVICE}/?error=auth_failed")
+
+@auth_bp.route('/user')
+def get_user_data():
+    """Get current user data"""
+    try:
+        user = session.get('user')
+        if not user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        return jsonify(user)
+    except Exception as e:
+        logger.error(f"Error getting user data: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@auth_bp.route('/logout')
+def logout():
+    """Logout user and clear session"""
+    try:
+        session.clear()
+        return redirect(f"http://{Config.FRONTEND_SERVICE}/")
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        return jsonify({'error': 'Logout failed'}), 500 

@@ -1,4 +1,6 @@
 appdirs==1.4.4
+aiofiles==23.2.1
+asyncio-mqtt==0.16.1
 beautifulsoup4==4.12.2
 blinker==1.8.2
 cachetools==5.3.1
