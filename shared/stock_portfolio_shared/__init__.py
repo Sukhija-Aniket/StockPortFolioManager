@@ -8,9 +8,9 @@ __version__ = "0.1.0"
 __author__ = "Stock Portfolio Manager"
 
 from .constants import *
-from .utils.sheets import SheetsManager
-from .utils.excel import ExcelManager
-from .utils.data_processing import DataProcessor
+from .utils.sheet_manager import SheetsManager
+from .utils.excel_manager import ExcelManager
+from .utils.data_processor import DataProcessor
 
 __all__ = [
     "SheetsManager",

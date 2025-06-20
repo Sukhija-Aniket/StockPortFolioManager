@@ -2,10 +2,10 @@
 Shared utilities for Stock Portfolio Manager
 """
 
-from .sheets import SheetsManager
-from .excel import ExcelManager
-from .data_processing import DataProcessor
-from .common import CommonUtils
+from .sheet_manager import SheetsManager
+from .excel_manager import ExcelManager
+from .data_processor import DataProcessor
+from .common_utils import CommonUtils
 
 __all__ = [
     "SheetsManager",

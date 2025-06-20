@@ -1,4 +1,4 @@
-Metadata-Version: 2.4
+Metadata-Version: 2.1
 Name: stock-portfolio-shared
 Version: 0.1.0
 Summary: Shared utilities for Stock Portfolio Manager
@@ -31,14 +31,6 @@ Requires-Dist: pytest>=6.0; extra == "dev"
 Requires-Dist: pytest-cov>=2.0; extra == "dev"
 Requires-Dist: black>=21.0; extra == "dev"
 Requires-Dist: flake8>=3.8; extra == "dev"
-Dynamic: author
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: provides-extra
-Dynamic: requires-dist
-Dynamic: requires-python
-Dynamic: summary
 
 # Stock Portfolio Shared Library
 
