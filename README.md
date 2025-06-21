@@ -121,19 +121,12 @@ To run the project, you need to set up the following configuration files:
       ```
       source venv/bin/activate
       ```
-2. Run the Python script:
+2. Run the worker service:
 
    ```
-   python tradingScript.py
+   python worker/worker.py
    ```
-3. Provide the necessary Command Line Arguments:
-   - The first one is absolute path of the `csv` file downloaded from Kite Zerodha
-   - The second is whether you would like to choose `excel` or `sheets`. Leave empty to use default i.e. `excel`
-   - If you choose `sheets`, for the third argument provide the `spreadsheet_id` for the spreadsheet you would like to use or leave empty for default spreadsheet.
-   - Make sure the spreadsheet you choose is being shared with the Service Account you created.
-   - If you choose `excel`, for the third argument provide the name of the excel file which you would like to use, leave empty for default excel file.
-   - Make sure to place the excel file in the `assets` folder present in the project.
-
+3. The worker service will automatically process spreadsheets from the message queue.
 
 ## Contributing
 

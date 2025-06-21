@@ -8,18 +8,32 @@ import logging
 from openpyxl.styles import Font, PatternFill
 from stock_portfolio_shared.utils.base_manager import BaseManager
 from ..constants import BUY, CELL_RANGE, SELL, Raw_constants, DATE_FORMAT
+from ..utils.data_processor import DataProcessor
+import os
 
 logger = logging.getLogger(__name__)
 
 class ExcelManager(BaseManager):
     """Manages Excel operations"""
     
+    def __init__(self):
+        self.data_processor = DataProcessor()
+    
     def load_workbook(self, spreadsheet_file):
         """Load Excel workbook"""
         return openpyxl.load_workbook(spreadsheet_file)
     
-    def read_data_from_excel(self, spreadsheet_file, sheet_name):
+    def get_sheet_names(self, spreadsheet_file):
+        spreadsheet = self.get_spreadsheet(spreadsheet_file)
+        sheet_names = spreadsheet.sheetnames
+        return sheet_names
+    
+    def read_data(self, spreadsheet_file, sheet_name):
         """Read data from Excel file"""
+        spreadsheet = self.get_spreadsheet(spreadsheet_file)
+        sheet_names = spreadsheet.sheetnames
+        if sheet_name not in sheet_names:
+            raise ValueError(f"Sheet {sheet_name} not found in {spreadsheet_file}")
         df = pd.read_excel(spreadsheet_file, sheet_name=sheet_name)
         return df
     
@@ -42,21 +56,30 @@ class ExcelManager(BaseManager):
         for row in data:
             sheet.append(row)
         for cell in sheet['1']:
-            cell.font = Font(bold=True)
+            cell.font = Font(bold=True)     
     
-    def upload_data(self, file_path):
-        """Upload data to Excel"""
-        spreadsheet, sheet_names, raw_data = self.get_sheets_and_data(file_path)
-        # totally missed the upload part here.
-        return spreadsheet, sheet_names, raw_data
+    def upload_data(self, input_data, spreadsheet_file, sheet_name, allow_duplicates=False):
+        """Upload data to Excel file"""
+        try:
+            spreadsheet = self.get_spreadsheet(spreadsheet_file)
+            raw_data = self.read_data(spreadsheet_file, sheet_name)
+            validated_input_data = self.validate_data(raw_data, input_data)
+            
+            if not allow_duplicates:
+                if self.data_processor.data_already_exists(raw_data, validated_input_data):
+                    logger.info("Data already exists in Excel")
+                    return
+            raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
+            self._update_data(spreadsheet, sheet_name, raw_data)
+            logger.info("Data uploaded successfully to Excel")
+        except Exception as e:
+            logger.error(f"Error uploading data to Excel: {e}")
+            raise
+            
     
-    
-    def get_sheets_and_data(self, spreadsheet_file):
+    def get_spreadsheet(self, spreadsheet_file):
         spreadsheet = self.load_workbook(spreadsheet_file)
-        sheet_names = spreadsheet.sheetnames
-        raw_data = self.read_data_from_excel(spreadsheet, sheet_names[0])
-        
-        return spreadsheet, sheet_names, raw_data
+        return spreadsheet
 
     
     def _initialize_excel(self, spreadsheet, sheet_name):
@@ -66,7 +89,7 @@ class ExcelManager(BaseManager):
         self.format_background_excel(sheet, CELL_RANGE)
         return sheet
     
-    def update_excel(self, spreadsheet, sheet_name, data, formatting_function=None):
+    def _update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
         """Update Excel with data"""
         sheet = self._initialize_excel(spreadsheet, sheet_name)
         self.display_and_format_excel(sheet, data)

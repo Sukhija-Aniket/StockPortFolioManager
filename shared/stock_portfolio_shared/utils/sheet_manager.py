@@ -23,11 +23,11 @@ class SheetsManager(BaseManager):
         self.credentials = credentials
         self.data_processor = DataProcessor()
     
-    def authenticate_and_get_spreadsheet(self,spreadsheet_id, credentials=None):
+    def _get_spreadsheet(self,spreadsheet_id):
         """Authenticate and get Google Sheets instance"""
         logger.info("Authenticating Sheets: %s", spreadsheet_id)
         try:
-            credentials_obj = Credentials(**credentials)
+            credentials_obj = Credentials(**self.credentials)
             # Use the custom HTTP client with disabled SSL validation
             # Create a Session that skips SSL checks
             session = AuthorizedSession(credentials_obj) 
@@ -37,11 +37,15 @@ class SheetsManager(BaseManager):
             logger.info("Authorized, this is the spreadsheet_id: %s", spreadsheet_id)
             return spreadsheet
         except Exception as e:
-            logger.error("Unable to authorize spreadsheet %s, exiting...", e)
+            logger.error("Unable to authorize spreadsheet %s", e)
             raise RuntimeError(f"Authorization Failed for spreadsheets: {e}")
     
     def read_data(self, spreadsheet, sheet_name):
         """Read data from Google Sheets"""
+        worksheets = spreadsheet.worksheets()
+        sheet_names = [worksheet.title for worksheet in worksheets]
+        if sheet_name not in sheet_names:
+            raise ValueError(f"Sheet {sheet_name} not found in provided Spreadsheet")
         sheet = spreadsheet.worksheet(sheet_name)
         data = sheet.get_all_values()
         if len(data) == 0:
@@ -49,34 +53,21 @@ class SheetsManager(BaseManager):
         df = pd.DataFrame(data[1:], columns=data[0])
         return df
     
-    def upload_data(self, file_path, spreadsheet_id):
-        """Main function to upload data to sheets or excel using shared library"""
-        # Use shared library's data processor for path validation
-        valid_path = self.data_processor.check_valid_path(file_path)
-        if valid_path:
-            # Handling User data and preparing raw data
-            logger.info(f"Processing file: {file_path}")
-            input_data = pd.read_csv(file_path)
-            
-            # Use shared library's data processor for formatting
-            final_input_data = self.data_processor.format_add_data(input_data)
-            
-            # Get spreadsheet data
-            spreadsheet, sheet_names, raw_data = self.get_sheets_and_data(spreadsheet_id)
-            
-            # Check for duplicates using shared library
-            self.data_processor.data_already_exists(raw_data, final_input_data)
-            
-            # Combine data
-            raw_data = pd.concat([raw_data, final_input_data], ignore_index=True)
-            
-            # Update spreadsheet
-            self.update(spreadsheet, sheet_names[0], raw_data)
-            logger.info("Data uploaded successfully")
-        else:
-            logger.error(f"Invalid path: {file_path}")
-            raise FileNotFoundError(f"Invalid path: {file_path}")
-
+    def upload_data(self, input_data, spreadsheet_id, sheet_name, allow_duplicates=False):
+        """Upload data to sheets"""
+        try:
+            spreadsheet = self.get_spreadsheet(spreadsheet_id, sheet_name)
+            raw_data = self.read_data(spreadsheet, sheet_name)
+            validated_input_data = self.validate_data(raw_data, input_data)
+            if not allow_duplicates and self.data_processor.data_already_exists(raw_data, validated_input_data):
+                logger.warning("Data already exists in Sheets, Skipping Upload")
+                return
+            raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
+            self._update_data(spreadsheet, sheet_name, raw_data)
+            logger.info("Data uploaded successfully to Sheets")
+        except Exception as e:
+            logger.error(f"Error uploading data to sheets: {e}")
+            raise
     
     def format_background_sheets(self, spreadsheet, sheet, cell_range):
         """Format background of Google Sheets"""
@@ -183,22 +174,24 @@ class SheetsManager(BaseManager):
             result = chr(65 + remainder) + result
         return result
     
-    def update(self, spreadsheet, sheet_name, data, formatting_function=None):
+    def _update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
         """Update Google Sheets with data"""
-        logger.info("this message will be removed later!")
         sheet = self._initialize_sheets(spreadsheet, sheet_name)
         self.display_and_format_sheets(sheet, data)
         if formatting_function is not None:
             formatting_function(spreadsheet, sheet)
         logger.info(f"{sheet_name} updated Successfully!")
     
-    def get_sheets_and_data(self, spreadsheet_id):
-        """Get sheets data"""
-        spreadsheet = self.authenticate_and_get_sheets(spreadsheet_id, self.credentials)
+    def get_sheet_names(self, spreadsheet_id):
+        spreadsheet = self._get_spreadsheet(spreadsheet_id)
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
-        raw_data = self.read_data_from_sheets(spreadsheet, sheet_names[0])
-        return spreadsheet, sheet_names, raw_data
+        return sheet_names
+    
+    def get_spreadsheet(self, spreadsheet_id):
+        """Get sheets data"""
+        spreadsheet = self._get_spreadsheet(spreadsheet_id)
+        return spreadsheet
     
     def _get_backgroundColor_formatting_request(sheet, row_number, row_data, background_color):
         format_request = {

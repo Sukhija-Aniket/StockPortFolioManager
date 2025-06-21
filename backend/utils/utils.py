@@ -53,27 +53,3 @@ def upload_data(file_path, typ, spreadsheet_id, creds, http):
     else:
         logger.error(f"Invalid path: {file_path}")
         raise FileNotFoundError(f"Invalid path: {file_path}")
-
-def get_args_and_input(args, excel_file_name, spreadsheet_id, env_file):
-    """Get arguments and input data for processing using shared library"""
-    try:
-        # Use shared library's common utils for argument parsing
-        input_file, typ, credentials = common_utils.get_args_and_input(args, excel_file_name, spreadsheet_id, env_file)
-        
-        # Get spreadsheet file path using shared library
-        spreadsheet_file = data_processor.get_valid_path(input_file)
-        
-        # Get spreadsheet ID
-        if not spreadsheet_id:
-            raise ValueError("Spreadsheet ID is required")
-        
-        return {
-            'credentials': credentials,
-            'spreadsheet_file': spreadsheet_file,
-            'spreadsheet_id': spreadsheet_id,
-            'env_file': env_file
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting arguments: {e}")
-        raise
