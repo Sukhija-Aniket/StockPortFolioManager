@@ -1,13 +1,35 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=stock_portfolio
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - my-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
   # Backend service for Python
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
       - ./shared:/app/shared
     environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/stock_portfolio
       - RABBITMQ_HOST=rabbitmq
       - PORT=5000
       - RABBITMQ_USERNAME=username
@@ -17,6 +39,8 @@ services:
     ports:
       - "5000:5000"
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: always
@@ -75,15 +99,18 @@ services:
       context: .
       dockerfile: worker/Dockerfile
     volumes:
-      - ./worker:/app
+      - ./worker:/app/worker
       - ./shared:/app/shared
     environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/stock_portfolio
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USERNAME=username
       - RABBITMQ_PASSWORD=password
       - WORKER_CONCURRENCY=4  # Number of concurrent tasks
       - WORKER_TIMEOUT=300    # Task timeout in seconds
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: always
@@ -126,3 +153,4 @@ networks:
 
 volumes:
   rabbitmq_data:
+  postgres_data:

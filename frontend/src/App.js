@@ -100,26 +100,43 @@ const App = () => {
   };
 
   const deleteAllCookies = () => {
-    document.cookie.split(';').forEach((c) => {
-      document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/');
+    const cookies = document.cookie.split(';');
+    
+    cookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      
+      // Delete cookie with root path only - this will clear it for all sub-paths
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
     });
   };
   
   const handleSignOut = async () => {
     try {
-      localStorage.removeItem('user_id');
-      localStorage.removeItem('access_token');
-      sessionStorage.removeItem('user_id');
-      sessionStorage.removeItem('access_token');
-      deleteAllCookies();
+      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/logout`, { withCredentials: true });
+      console.log("Clearing local storage and session storage");
+      localStorage.clear();
+      sessionStorage.clear();
+      // Force clear the session cookie
+      // document.cookie = 'session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
-      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/logout`);
-      setUser(null); // Clear user state
+      setUser(null);
       setSpreadsheets([]);
-      deleteAllCookies();
+      window.location.reload();
       
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleDebugSession = async () => {
+    try {
+      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/debug-session`, { 
+        withCredentials: true 
+      });
+      console.log('Debug session response:', res.data);
+    } catch (error) {
+      console.error('Error debugging session:', error);
     }
   };
 
@@ -132,6 +149,9 @@ const App = () => {
       {user && (
         <div className="text-center py-3">
           <div className="d-flex justify-content-end mb-3">
+            <Button variant="outline-info" onClick={handleDebugSession} className="me-2">
+              Debug Session
+            </Button>
             <Button variant="outline-secondary" onClick={handleSignOut}>
               Sign Out
             </Button>

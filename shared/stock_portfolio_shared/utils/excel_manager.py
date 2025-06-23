@@ -6,8 +6,10 @@ import openpyxl
 import pandas as pd
 import logging
 from openpyxl.styles import Font, PatternFill
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from stock_portfolio_shared.utils.base_manager import BaseManager
-from ..constants import BUY, CELL_RANGE, SELL, Raw_constants, DATE_FORMAT
+from ..constants.general_constants import BUY, CELL_RANGE, DATA_TIME_FORMAT, SELL
+from ..constants.raw_constants import Raw_constants
 from ..utils.data_processor import DataProcessor
 import os
 
@@ -23,18 +25,36 @@ class ExcelManager(BaseManager):
         """Load Excel workbook"""
         return openpyxl.load_workbook(spreadsheet_file)
     
-    def get_sheet_names(self, spreadsheet_file):
-        spreadsheet = self.get_spreadsheet(spreadsheet_file)
-        sheet_names = spreadsheet.sheetnames
-        return sheet_names
+    def get_sheet_names(self, spreadsheet_task: SpreadsheetTask):
+        """Get sheet names from Excel file"""
+        spreadsheet = self.get_spreadsheet(spreadsheet_task)
+        return spreadsheet.sheetnames
     
-    def read_data(self, spreadsheet_file, sheet_name):
-        """Read data from Excel file"""
-        spreadsheet = self.get_spreadsheet(spreadsheet_file)
+    def read_data(self, spreadsheet, sheet_name):
+        """Read data from Excel file using spreadsheet object"""
         sheet_names = spreadsheet.sheetnames
         if sheet_name not in sheet_names:
-            raise ValueError(f"Sheet {sheet_name} not found in {spreadsheet_file}")
-        df = pd.read_excel(spreadsheet_file, sheet_name=sheet_name)
+            raise ValueError(f"Sheet {sheet_name} not found in spreadsheet")
+        
+        # Get the worksheet from the spreadsheet object
+        worksheet = spreadsheet[sheet_name]
+        
+        # Convert worksheet data to DataFrame
+        data = []
+        headers = []
+        
+        # Get headers from first row
+        for row in worksheet.iter_rows(min_row=1, max_row=1, values_only=True):
+            headers = row
+            break
+        
+        # Get data rows (skip header row)
+        for row in worksheet.iter_rows(min_row=2, values_only=True):
+            if any(cell is not None for cell in row):  # Skip empty rows
+                data.append(row)
+        
+        # Create DataFrame
+        df = pd.DataFrame(data, columns=headers)
         return df
     
     def format_background_excel(self, sheet, cell_range):
@@ -47,7 +67,7 @@ class ExcelManager(BaseManager):
         """Display and format data in Excel"""
         data = data.round(4)
         try:
-            data[Raw_constants.DATE] = data[Raw_constants.DATE].dt.strftime(DATE_FORMAT)
+            data[Raw_constants.DATE] = data[Raw_constants.DATE].dt.strftime(DATA_TIME_FORMAT)
         except Exception as e:
             pass
         headers = data.columns.tolist() 
@@ -58,11 +78,10 @@ class ExcelManager(BaseManager):
         for cell in sheet['1']:
             cell.font = Font(bold=True)     
     
-    def upload_data(self, input_data, spreadsheet_file, sheet_name, allow_duplicates=False):
+    def add_data(self, input_data, spreadsheet, sheet_name, allow_duplicates=False, formatting_function=None):
         """Upload data to Excel file"""
         try:
-            spreadsheet = self.get_spreadsheet(spreadsheet_file)
-            raw_data = self.read_data(spreadsheet_file, sheet_name)
+            raw_data = self.read_data(spreadsheet, sheet_name)
             validated_input_data = self.validate_data(raw_data, input_data)
             
             if not allow_duplicates:
@@ -70,15 +89,15 @@ class ExcelManager(BaseManager):
                     logger.info("Data already exists in Excel")
                     return
             raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
-            self._update_data(spreadsheet, sheet_name, raw_data)
+            self.update_data(spreadsheet, sheet_name, raw_data, formatting_function)
             logger.info("Data uploaded successfully to Excel")
         except Exception as e:
             logger.error(f"Error uploading data to Excel: {e}")
             raise
             
     
-    def get_spreadsheet(self, spreadsheet_file):
-        spreadsheet = self.load_workbook(spreadsheet_file)
+    def get_spreadsheet(self, spreadsheet_task: SpreadsheetTask):
+        spreadsheet = self.load_workbook(spreadsheet_task.spreadsheet_id)
         return spreadsheet
 
     
@@ -89,7 +108,7 @@ class ExcelManager(BaseManager):
         self.format_background_excel(sheet, CELL_RANGE)
         return sheet
     
-    def _update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
+    def update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
         """Update Excel with data"""
         sheet = self._initialize_excel(spreadsheet, sheet_name)
         self.display_and_format_excel(sheet, data)
@@ -119,8 +138,8 @@ class ExcelManager(BaseManager):
         for row in sheet[cell_range]:
             if row[0].value is None or row[0].value == '':
                 break
-            remaining_shares = int(row[7].value)
-            profit = float(row[9].value)
+            remaining_shares = pd.to_numeric(row[7].value, errors='coerce', thousands=',')
+            profit = pd.to_numeric(row[9].value, errors='coerce', thousands=',')
             if remaining_shares == 0:
                 if profit >= 0.0:
                     for cell in row:
@@ -129,7 +148,7 @@ class ExcelManager(BaseManager):
                     for cell in row:
                         cell.fill = redFill
 
-    def dailyProfitLoss_formatting(sheet):
+    def dailyProfitLoss_formatting(self, sheet):
         cell_range = CELL_RANGE
         redFill = openpyxl.styles.PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
         blueFill = openpyxl.styles.PatternFill(start_color='FF0000FF', end_color='FF0000FF', fill_type='solid')
@@ -137,7 +156,7 @@ class ExcelManager(BaseManager):
             if row[0].value is None or row[0].value == '':
                 break
             if row[9].value != '':
-                if float(row[9].value) > 0.0:
+                if pd.to_numeric(row[9].value, errors='coerce', thousands=',') > 0.0:
                     for cell in row:
                         cell.fill = blueFill
                 else :
@@ -152,10 +171,10 @@ class ExcelManager(BaseManager):
             if row[0].value is None or row[0].value == '':
                 break
             if row[9].value != '':
-                if float(row[2].value) + float(row[3].value) + float(row[4].value) > 0.0:
+                if pd.to_numeric(row[2].value, errors='coerce', thousands=',') + pd.to_numeric(row[3].value, errors='coerce', thousands=',') + pd.to_numeric(row[4].value, errors='coerce', thousands=',') > 0.0:
                     for cell in row:
                         cell.fill = blueFill
-                elif float(row[2].value) + float(row[3].value) + float(row[4].value) < 0.0:
+                elif pd.to_numeric(row[2].value, errors='coerce', thousands=',') + pd.to_numeric(row[3].value, errors='coerce', thousands=',') + pd.to_numeric(row[4].value, errors='coerce', thousands=',') < 0.0:
                     for cell in row:
                         cell.fill = redFill
                         
@@ -168,13 +187,3 @@ class ExcelManager(BaseManager):
             sheet_names[3]: self.dailyProfitLoss_formatting,
             sheet_names[4]: self.taxation_formatting
         }
-    
-    
-    def get_updating_func(self, typ):
-        """Get updating function based on type"""
-        if typ == 'sheets':
-            from .sheet_manager import SheetsManager
-            sheets_manager = SheetsManager()
-            return sheets_manager.update_sheet
-        else:
-            return self.update_excel 

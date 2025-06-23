@@ -8,15 +8,15 @@ charset-normalizer==3.2.0
 click==8.1.7
 cryptography==42.0.8
 et-xmlfile==1.1.0
-Flask==3.0.3
-Flask-Cors==4.0.1
+Flask==3.0.0
+Flask-Cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 frozendict==2.3.8
 google-api-core==2.19.1
-google-api-python-client==2.137.0
-google-auth==2.22.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.0.0
+google-api-python-client==2.108.0
+google-auth==2.23.4
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
 googleapis-common-protos==1.63.2
 greenlet==3.0.3
 gspread==6.1.2
@@ -60,3 +60,4 @@ webencodings==0.5.1
 Werkzeug==3.0.3
 yfinance==0.2.25
 zipp==3.19.2
+psycopg2-binary==2.9.9

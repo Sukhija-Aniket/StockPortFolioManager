@@ -9,7 +9,7 @@ load_dotenv(env_file)
 class Config:
     """Base configuration class"""
     SECRET_KEY = os.getenv('APP_SECRET_KEY', 'dev-secret-key')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@postgres:5432/stock_portfolio')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = 16 * 1000 * 1000  # 16MB max file size
     

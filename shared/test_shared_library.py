@@ -15,20 +15,17 @@ def test_shared_library():
     
     try:
         # Test imports
-        from stock_portfolio_shared.constants import BUY, SELL, DATE_FORMAT
+        from stock_portfolio_shared.constants.general_constants import BUY, SELL, DATE_FORMAT
         print("✅ Constants imported successfully")
         
-        from shared.stock_portfolio_shared.utils.sheet_manager import SheetsManager
+        from stock_portfolio_shared.utils.sheet_manager import SheetsManager
         print("✅ SheetsManager imported successfully")
         
-        from shared.stock_portfolio_shared.utils.excel_manager import ExcelManager
+        from stock_portfolio_shared.utils.excel_manager import ExcelManager
         print("✅ ExcelManager imported successfully")
         
-        from shared.stock_portfolio_shared.utils.data_processor import DataProcessor
+        from stock_portfolio_shared.utils.data_processor import DataProcessor
         print("✅ DataProcessor imported successfully")
-        
-        from shared.stock_portfolio_shared.utils.common_utils import CommonUtils
-        print("✅ CommonUtils imported successfully")
         
         # Test constants
         print(f"✅ BUY constant: {BUY}")

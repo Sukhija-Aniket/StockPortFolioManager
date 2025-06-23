@@ -57,8 +57,8 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
   };
   
 
-  const handleUploadData = async () => {
-    console.log("handling upload data")
+  const handleAddData = async () => {
+    console.log("handling add data")
     if (files && uploadTitle) {
       console.log('Uploading files...');
 
@@ -66,10 +66,12 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
       [...files].forEach((file) => {
         formData.append('file', file);
       });
-      formData.append('spreadsheet_id', spreadsheeturl.split('/d/')[1]?.split('/')[0]);
+      formData.append('spreadsheet_url', spreadsheeturl);
+      formData.append('title', uploadTitle);
+      formData.append('spreadsheet_type', 'sheets');
       console.log("okay going great: " + formData.getAll('file').toString());
       try {
-        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/upload`, formData, {
+        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/add`, formData, {
           withCredentials: true,
           headers: {
             'Content-Type':'multipart/form-data'
@@ -134,8 +136,8 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
             />
           </Col>
           <Col xs="auto">
-            <Button variant="success" disabled={isDisabled} onClick={handleUploadData}>
-              Upload Data
+            <Button variant="success" disabled={isDisabled} onClick={handleAddData}>
+              Add Data
             </Button>
           </Col>
         </Row>

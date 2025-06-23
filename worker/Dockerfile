@@ -16,11 +16,14 @@ COPY worker/requirements.txt .
 # Install any dependencies specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the current directory contents into the container at /app
-COPY worker/ .
+# Copy worker contents to worker subdirectory
+COPY worker/ /app/worker/
 
 # Create logs directory and set permissions
-RUN mkdir -p logs && chmod 755 logs
+RUN mkdir -p /app/worker/logs && chmod 755 /app/worker/logs
+
+# Set working directory to worker
+WORKDIR /app/worker
 
 # Run the worker script when the container launches
 CMD ["python", "worker.py"]

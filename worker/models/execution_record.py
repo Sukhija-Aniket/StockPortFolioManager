@@ -1,40 +1,43 @@
-from extensions import db
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Index
+from sqlalchemy.sql import func
+from database import Base
+from datetime import datetime, timezone
 import hashlib
 import logging
 
-class ExecutionRecord(db.Model):
+logger = logging.getLogger(__name__)
+
+class ExecutionRecord(Base):
     """Model for storing worker execution records"""
     __tablename__ = 'execution_records'
     
     # Primary key
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Core tracking fields
-    execution_time = db.Column(db.DateTime, nullable=False)
-    worker_id = db.Column(db.String(100), nullable=False, index=True)
-    data_hash = db.Column(db.String(64), nullable=False, index=True)
-    spreadsheet_id = db.Column(db.String(100), nullable=False, index=True)
-    user_id = db.Column(db.String(120), index=True)
+    execution_time = Column(DateTime, nullable=False)
+    worker_id = Column(String(100), nullable=False, index=True)
+    data_hash = Column(String(64), nullable=True, index=True)
+    spreadsheet_id = Column(String(100), nullable=False, index=True)
     
     # Additional useful fields
-    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, running, completed, failed
-    processing_duration = db.Column(db.Float)  # seconds
-    rows_processed = db.Column(db.Integer)
-    error_message = db.Column(db.Text)
+    status = Column(String(20), nullable=False, default='pending')  # pending, running, completed, failed
+    processing_duration = Column(Float)
+    rows_processed = Column(Integer)
+    error_message = Column(Text)
     
     # Metadata fields
-    created_at = db.Column(db.DateTime, default=datetime.now(datetime.UTC))
-    updated_at = db.Column(db.DateTime, default=datetime.now(datetime.UTC), onupdate=datetime.now(datetime.UTC))
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     # Performance metrics
-    memory_usage = db.Column(db.Float)  # MB
-    cpu_usage = db.Column(db.Float)  # percentage
+    memory_usage = Column(Float)  # MB
+    cpu_usage = Column(Float)  # percentage
     
     # Retry information
-    retry_count = db.Column(db.Integer, default=0)
-    max_retries = db.Column(db.Integer, default=3)
-    last_retry_time = db.Column(db.DateTime)
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    last_retry_time = Column(DateTime)
     
     def __repr__(self):
         return f'<ExecutionRecord {self.worker_id} - {self.spreadsheet_id} - {self.status}>'
@@ -53,7 +56,6 @@ class ExecutionRecord(db.Model):
             'error_message': self.error_message,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'user_id': self.user_id,
             'memory_usage': self.memory_usage,
             'cpu_usage': self.cpu_usage,
             'retry_count': self.retry_count,
@@ -73,6 +75,9 @@ class ExecutionRecord(db.Model):
     
     def is_duplicate(self, other_record):
         """Check if this execution is a duplicate of another"""
+        # If either record has no data_hash, they can't be duplicates
+        if not self.data_hash or not other_record.data_hash:
+            return False
         return (self.data_hash == other_record.data_hash and 
                 self.spreadsheet_id == other_record.spreadsheet_id)
     
@@ -96,12 +101,8 @@ class ExecutionRecord(db.Model):
         """Update retry information"""
         try:
             self.retry_count = attempt
-            self.last_retry_time = datetime.now(datetime.UTC)
+            self.last_retry_time = datetime.now(timezone.utc)
             self.status = 'running'
-            # updated_at will be automatically updated by SQLAlchemy onupdate
         except Exception as e:
-            # Log the error but don't raise to prevent cascading failures
-            logger = logging.getLogger(__name__)
             logger.error(f"Failed to update retry info for execution record {self.id}: {e}")
-            # Re-raise to let caller handle it
             raise

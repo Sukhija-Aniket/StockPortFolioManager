@@ -1,23 +1,23 @@
+import asyncio
 import pika
 import json
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import os
+from config import Config
+from database import init_db, test_connection
+from services.trading_orchestrator import TradingOrchestrator
+from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
+from concurrent.futures import ThreadPoolExecutor
+
+
+sheets_manager = SheetsManager()
+excel_manager = ExcelManager()
 
 # Setup logging
 from utils.logging_config import setup_logging
 logger = setup_logging(__name__)
-
-# Import configuration and shared library
-from config import Config
-from stock_portfolio_shared.utils.common_utils import CommonUtils
-
-# Import the trading service
-from services.trading_service import TradingService
-
-# Initialize configuration and shared utilities
-config = Config()
-common_utils = CommonUtils()
 
 class AsyncWorker:
     """Async worker for processing spreadsheet tasks"""
@@ -26,49 +26,45 @@ class AsyncWorker:
         # Get configuration from environment variables
         self.max_workers = int(os.getenv('WORKER_CONCURRENCY', 4))
         self.task_timeout = int(os.getenv('WORKER_TIMEOUT', 300))
-        
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
-        self.running_tasks = {}
-        
-        # Initialize the trading service
-        self.trading_service = TradingService(max_workers=self.max_workers)
+        self.sheets_orchestrator = TradingOrchestrator(sheets_manager, self.executor)
+        self.excel_orchestrator = TradingOrchestrator(excel_manager, self.executor)
         
         logger.info(f"Initialized AsyncWorker with {self.max_workers} workers and {self.task_timeout}s timeout")
     
-    async def process_spreadsheet_async(self, spreadsheet, credentials):
+    async def process_spreadsheet_async(self, task: SpreadsheetTask):
         """Process a single spreadsheet asynchronously"""
         try:
-            logger.info(f"Starting async processing for spreadsheet: {spreadsheet['title']}")
+            logger.info(f"Starting async processing for spreadsheet: {task.spreadsheet_id}")
             
-            # Extract spreadsheet ID from URL using shared library
-            spreadsheet_id = common_utils.extract_spreadsheet_id(spreadsheet['url'])
-            if not spreadsheet_id:
-                logger.error(f"Invalid spreadsheet URL: {spreadsheet['url']}")
-                return False
+            # Process the spreadsheet
+            if task.spreadsheet_type == SpreadsheetType.SHEETS:
+                result = await self.sheets_orchestrator.process_spreadsheet(task)
+            elif task.spreadsheet_type == SpreadsheetType.EXCEL:
+                result = await self.excel_orchestrator.process_spreadsheet(task)
+            else:
+                raise ValueError(f"Unsupported task type: {task.spreadsheet_type}")
             
-            # Use the trading service to process the spreadsheet
-            result = await self.trading_service.process_spreadsheet_async(
-                spreadsheet_id, 
-                credentials, 
-                'sheets'
-            )
-            
-            logger.info(f"Completed async processing for {spreadsheet['title']}: {result}")
+            logger.info(f"Completed async processing for {task.spreadsheet_id}: {result}")
             return result
             
         except Exception as e:
-            logger.error(f"Exception in async processing for {spreadsheet['title']}: {e}")
+            logger.error(f"Exception in async processing for {task.spreadsheet_id}: {e}")
             return False
     
-    async def process_batch_async(self, spreadsheets, credentials):
+    async def process_batch_async(self, tasks):
         """Process multiple spreadsheets concurrently"""
         try:
-            logger.info(f"Starting batch processing for {len(spreadsheets)} spreadsheets")
+            logger.info(f"Starting batch processing for {len(tasks)} tasks")
             
-            # Use the trading service's batch processing method
-            success_count = await self.trading_service.process_batch_async(spreadsheets, credentials)
+            # Process tasks concurrently
+            tasks_list = [self.process_spreadsheet_async(task) for task in tasks]
+            results = await asyncio.gather(*tasks_list, return_exceptions=True)
             
-            logger.info(f"Batch processing completed: {success_count}/{len(spreadsheets)} successful")
+            # Count successful results
+            success_count = sum(1 for result in results if result is True)
+            
+            logger.info(f"Batch processing completed: {success_count}/{len(tasks)} successful")
             return success_count
             
         except Exception as e:
@@ -78,33 +74,27 @@ class AsyncWorker:
     def shutdown(self):
         """Clean shutdown of the worker"""
         logger.info("Shutting down AsyncWorker")
-        self.trading_service.shutdown()
         self.executor.shutdown(wait=True)
         logger.info("AsyncWorker shutdown complete")
 
-async def async_callback(ch, method, properties, body, worker):
+async def async_callback(ch, method, properties, body, worker: AsyncWorker):
     """Async RabbitMQ message callback"""
     try:
         data = json.loads(body)
-        logger.info(f"Received message with {len(data.get('spreadsheets', []))} spreadsheets")
+        logger.info(f"Received message with {len(data.get('tasks', []))} tasks")
         
-        spreadsheets = data.get('spreadsheets', [])
-        credentials = data.get('credentials')
+        tasks_data = data.get('tasks', [])
+        tasks = [SpreadsheetTask.from_dict(task) for task in tasks_data]
         
-        if not spreadsheets:
-            logger.warning("No spreadsheets provided in message")
+        if not tasks:
+            logger.warning("No tasks provided in message")
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
         
-        if not credentials:
-            logger.error("No credentials provided in message")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-            return
+        # Process tasks asynchronously
+        success_count = await worker.process_batch_async(tasks)
         
-        # Process spreadsheets asynchronously
-        success_count = await worker.process_batch_async(spreadsheets, credentials)
-        
-        logger.info(f"Processed {success_count}/{len(spreadsheets)} spreadsheets successfully")
+        logger.info(f"Processed {success_count}/{len(tasks)} tasks successfully")
         
         # Acknowledge message
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -114,7 +104,7 @@ async def async_callback(ch, method, properties, body, worker):
         # Reject message and requeue
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
-def sync_callback(ch, method, properties, body, worker):
+def sync_callback(ch, method, properties, body, worker: AsyncWorker):
     """Synchronous callback wrapper for RabbitMQ"""
     asyncio.run(async_callback(ch, method, properties, body, worker))
 
@@ -126,20 +116,34 @@ def main():
     try:
         logger.info("Initializing async worker script")
         
+        # Validate configuration
+        Config.validate()
+        logger.info("Configuration validated successfully")
+        
+        # Test database connection
+        if not test_connection():
+            logger.error("Database connection failed")
+            return
+        
+        # Initialize database tables
+        init_db()
+        logger.info("Database initialized successfully")
+        
         # Initialize the worker
         worker = AsyncWorker()
         
         # Create RabbitMQ connection
         credentials_rabbitmq = pika.PlainCredentials(
-            config.RABBITMQ_USERNAME, 
-            config.RABBITMQ_PASSWORD
+            Config.RABBITMQ_USERNAME, 
+            Config.RABBITMQ_PASSWORD
         )
         
-        logger.info(f"Connecting to RabbitMQ at {config.RABBITMQ_HOST}")
+        logger.info(f"Connecting to RabbitMQ at {Config.RABBITMQ_HOST}")
         
         connection = pika.BlockingConnection(
             pika.ConnectionParameters(
-                host=config.RABBITMQ_HOST,
+                host=Config.RABBITMQ_HOST,
+                port=Config.RABBITMQ_PORT,
                 credentials=credentials_rabbitmq
             )
         )

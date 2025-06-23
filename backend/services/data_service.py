@@ -1,8 +1,10 @@
 import logging
 import pika
 import json
+
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
 from config import Config
-from utils import upload_data
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
 import os
@@ -15,13 +17,15 @@ class DataService:
     
     def __init__(self):
         self.data_processor = DataProcessor()
+        self.sheets_manager = SheetsManager()
+        self.excel_manager = ExcelManager()
         self.rabbitmq_config = {
             'host': Config.RABBITMQ_HOST,
             'username': Config.RABBITMQ_USERNAME,
             'password': Config.RABBITMQ_PASSWORD
         }
     
-    def send_to_worker(self, spreadsheets, credentials):
+    def send_to_worker(self, tasks, credentials):
         """Send data processing task to worker via RabbitMQ"""
         try:
             # Create connection to RabbitMQ
@@ -42,7 +46,7 @@ class DataService:
             
             # Prepare message
             message = {
-                'spreadsheets': spreadsheets,
+                'tasks': [task.to_dict() for task in tasks],
                 'credentials': credentials
             }
             
@@ -57,32 +61,27 @@ class DataService:
             )
             
             connection.close()
-            logger.info(f"Sent task to worker for {len(spreadsheets)} spreadsheets")
+            logger.info(f"Sent task to worker for {len(tasks)} spreadsheets")
             return True
             
         except Exception as e:
             logger.error(f"Error sending task to worker: {e}")
             raise
     
-    def process_data_upload(self, file_path, typ, spreadsheet_id, credentials=None):
+    def process_data_upload(self, file_path, spreadsheet_task: SpreadsheetTask):
         """Process data upload using the shared library"""
-        manager = SheetsManager(credentials) if typ == "sheets" else ExcelManager()
+        manager = self.sheets_manager if spreadsheet_task.spreadsheet_type == SpreadsheetType.SHEETS else self.excel_manager
         try:
-            sheet_names = manager.get_sheet_names(spreadsheet_id)
+            sheet_names = manager.get_sheet_names(spreadsheet_task)
             # Time to obtain input data
-            #########################################################
             if file_path is not None and os.path.exists(file_path):
                 # Handling User data and preparing raw data
                 logger.info(f"Processing file: {file_path}")
                 input_data = pd.read_csv(file_path)
-                
                 # Use shared library's data processor for formatting
                 final_input_data = self.data_processor.format_add_data(input_data)
-        
-                 # Check for duplicates using shared library
-                 # see if we really need this check: data_processor.data_already_exists(raw_data, final_input_data)
-            #########################################################
-            return manager.upload_data(final_input_data, spreadsheet_id, sheet_names[0])
+                spreadsheet = manager.get_spreadsheet(spreadsheet_task)
+                return manager.add_data(final_input_data, spreadsheet, sheet_names[0])
         except Exception as e:
             logger.error(f"Error processing data upload: {e}")
             raise

@@ -3,8 +3,9 @@ from flask import Flask, jsonify
 from sqlalchemy import text
 from config import config
 from extensions import db, cors
-from models import User, Spreadsheet
-from api import auth_bp, spreadsheet_bp, data_bp
+from routes.auth_routes import auth_bp
+from routes.spreadsheet_routes import spreadsheet_bp
+from routes.data_routes import data_bp
 from utils.logging_config import setup_logging
 
 def create_app(config_name='default'):
@@ -22,7 +23,7 @@ def create_app(config_name='default'):
     cors.init_app(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
     
     # Setup logging
-    setup_logging()
+    setup_logging(__name__)
     
     # Register blueprints
     app.register_blueprint(auth_bp)

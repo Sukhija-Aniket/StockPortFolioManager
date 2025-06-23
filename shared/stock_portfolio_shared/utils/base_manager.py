@@ -3,18 +3,20 @@ from typing import Dict, Any, Callable, List
 import pandas as pd
 import logging
 
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+
 logger = logging.getLogger(__name__)
 
 class BaseManager(ABC):
     """Base class for spreadsheet managers"""
     
     @abstractmethod
-    def get_spreadsheet(self, spreadsheet_id: str) -> Any:
+    def get_spreadsheet(self, spreadsheet_task: SpreadsheetTask) -> Any:
         """Authenticate and get spreadsheet instance"""
         pass
     
     @abstractmethod
-    def get_sheet_names(self, spreadsheet_id: str) -> List[str]:
+    def get_sheet_names(self, spreadsheet_task: SpreadsheetTask) -> List[str]:
         """Get sheet names from spreadsheet"""
         pass
     
@@ -28,9 +30,14 @@ class BaseManager(ABC):
         """Get formatting functions for this manager type"""
         pass
     
-    @abstractmethod
-    def upload_data(self, input_data: pd.DataFrame, spreadsheet_id: str, sheet_name: str) -> None:
+    @abstractmethod # TODO: use spreadsheet object here instead of spreadsheet_id
+    def add_data(self, input_data: pd.DataFrame, spreadsheet: str, sheet_name: str, formatting_function: Callable) -> None:
         """Upload data to spreadsheet"""
+        pass
+    
+    @abstractmethod
+    def update_data(self, spreadsheet: str, sheet_name: str, data: pd.DataFrame, formatting_function: Callable) -> None:
+        """Update data in spreadsheet"""
         pass
     
     def validate_data(self, raw_data, input_data):

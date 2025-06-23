@@ -3,28 +3,16 @@ Data processing utilities for Stock Portfolio Manager
 """
 
 import pandas as pd
-import numpy as np
 import logging
 from datetime import datetime
-from ..constants import DATE_FORMAT, DATA_TIME_FORMAT, SELL, Raw_constants, Data_constants
-import os
+from ..constants.general_constants import DATA_TIME_FORMAT, SELL
+from ..constants.raw_constants import Raw_constants
+from ..constants.data_constants import Data_constants
 
 logger = logging.getLogger(__name__)
 
 class DataProcessor:
     """Manages data processing operations"""
-    
-    @staticmethod
-    def replace_out_of_range_floats(obj):
-        """Replace out of range floats with None"""
-        if isinstance(obj, float):
-            if np.isnan(obj) or np.isinf(obj):
-                return None
-        elif isinstance(obj, list):
-            return [DataProcessor.replace_out_of_range_floats(item) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: DataProcessor.replace_out_of_range_floats(value) for key, value in obj.items()}
-        return obj
     
     @staticmethod
     def get_symbol(row):
@@ -37,7 +25,7 @@ class DataProcessor:
     def get_data_date(date):
         """Convert date to required format"""
         date_obj = datetime.strptime(date, DATA_TIME_FORMAT)
-        date_str = datetime.strftime(date_obj, DATE_FORMAT)
+        date_str = datetime.strftime(date_obj, DATA_TIME_FORMAT)
         return date_str
     
     @staticmethod
@@ -52,7 +40,7 @@ class DataProcessor:
     @staticmethod
     def get_net_amount(row):
         """Calculate net amount from row"""
-        val = int(row[Raw_constants.QUANTITY]) * float(row[Raw_constants.PRICE])
+        val = pd.to_numeric(row[Raw_constants.QUANTITY], errors='coerce', thousands=',') * pd.to_numeric(row[Raw_constants.PRICE], errors='coerce', thousands=',')
         return str(val)
     
     @staticmethod
@@ -190,128 +178,3 @@ class DataProcessor:
                 return {"duplicates_found": False, "error": str(e)}
             else:
                 return False
-    
-    @staticmethod
-    def find_similar_data(raw_data, input_data, similarity_threshold=0.7, comparison_columns=None):
-        """
-        Find similar (but not exact duplicate) data
-        
-        Args:
-            raw_data (pd.DataFrame): Existing data
-            input_data (pd.DataFrame): New data to check
-            similarity_threshold (float): Minimum similarity score (0.0 to 1.0)
-            comparison_columns (list): Columns to use for comparison
-            
-        Returns:
-            dict: Similarity analysis results
-        """
-        return DataProcessor.data_already_exists(
-            raw_data, input_data, 
-            comparison_columns=comparison_columns,
-            threshold_percentage=similarity_threshold,
-            exact_match=False,
-            return_details=True
-        )
-    
-    @staticmethod
-    def check_data_quality(raw_data, input_data):
-        """
-        Check data quality and potential issues
-        
-        Args:
-            raw_data (pd.DataFrame): Existing data
-            input_data (pd.DataFrame): New data
-            
-        Returns:
-            dict: Data quality report
-        """
-        quality_report = {
-            "raw_data_rows": len(raw_data),
-            "input_data_rows": len(input_data),
-            "raw_data_columns": list(raw_data.columns) if not raw_data.empty else [],
-            "input_data_columns": list(input_data.columns) if not input_data.empty else [],
-            "common_columns": list(set(raw_data.columns) & set(input_data.columns)) if not raw_data.empty and not input_data.empty else [],
-            "missing_columns": list(set(raw_data.columns) - set(input_data.columns)) if not raw_data.empty and not input_data.empty else [],
-            "extra_columns": list(set(input_data.columns) - set(raw_data.columns)) if not raw_data.empty and not input_data.empty else [],
-            "data_type_mismatches": [],
-            "null_values": {},
-            "duplicate_check": None
-        }
-        
-        # Check for null values
-        if not input_data.empty:
-            quality_report["null_values"]["input_data"] = input_data.isnull().sum().to_dict()
-        if not raw_data.empty:
-            quality_report["null_values"]["raw_data"] = raw_data.isnull().sum().to_dict()
-        
-        # Check data type mismatches in common columns
-        if not raw_data.empty and not input_data.empty:
-            common_cols = quality_report["common_columns"]
-            for col in common_cols:
-                if raw_data[col].dtype != input_data[col].dtype:
-                    quality_report["data_type_mismatches"].append({
-                        "column": col,
-                        "raw_data_type": str(raw_data[col].dtype),
-                        "input_data_type": str(input_data[col].dtype)
-                    })
-        
-        # Run duplicate check
-        quality_report["duplicate_check"] = DataProcessor.data_already_exists(
-            raw_data, input_data, return_details=True
-        )
-        
-        return quality_report
-    
-    @staticmethod
-    def check_valid_path(path):
-        """Check if path is valid"""
-        if path is None or not os.path.exists(path):
-            return None
-        return True
-    
-    @staticmethod
-    def get_valid_path(path):
-        """Get valid path with user input if needed"""
-        if path is None:
-            return None
-        if not os.path.exists(path):
-            logger.error("The Provided Path for file downloaded from Zerodha does not exist!")
-            path = input("Enter correct Absolute Path, including /home: ")
-            path = DataProcessor.get_valid_path(path)   
-        return path
-    
-    @staticmethod
-    def format_data_for_display(data):
-        """Format data for display purposes"""
-        # This is a placeholder - implement based on specific display requirements
-        return data
-    
-    @staticmethod
-    def process_trading_data(data):
-        """Process trading data for analysis"""
-        # This is a placeholder - implement based on specific trading analysis requirements
-        return data
-    
-    @staticmethod
-    def validate_data(data):
-        """Validate data integrity"""
-        # This is a placeholder - implement based on specific validation requirements
-        return True
-    
-    @staticmethod
-    def ensure_directory_exists(directory_path):
-        """Ensure directory exists, create if it doesn't"""
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
-        return directory_path
-    
-    @staticmethod
-    def get_file_extension(file_path):
-        """Get file extension from path"""
-        return os.path.splitext(file_path)[1].lower()
-    
-    @staticmethod
-    def is_valid_file_type(file_path, allowed_extensions):
-        """Check if file type is valid"""
-        extension = DataProcessor.get_file_extension(file_path)
-        return extension in allowed_extensions 

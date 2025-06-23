@@ -9,7 +9,6 @@ stock_portfolio_shared.egg-info/top_level.txt
 stock_portfolio_shared/constants/__init__.py
 stock_portfolio_shared/models/__init__.py
 stock_portfolio_shared/utils/__init__.py
-stock_portfolio_shared/utils/common_utils.py
 stock_portfolio_shared/utils/data_processor.py
 stock_portfolio_shared/utils/excel_manager.py
 stock_portfolio_shared/utils/sheet_manager.py

@@ -12,9 +12,10 @@ RUN pip install -e /app/shared
 COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
-# Copy backend code
-COPY backend/ .
+# Copy backend code to backend subdirectory
+COPY backend/ /app/backend/
 
+# Install additional system dependencies
 RUN apt-get update && \
     apt-get install -y libgl1-mesa-glx
 
@@ -27,6 +28,9 @@ RUN pip install multipart
 # COPY /usr/local/share/ca-certificates/* /app/usr/local/share/ca-certificates
 
 # RUN update-ca-certificates
+
+# Set working directory to backend
+WORKDIR /app/backend
 
 # Expose the port used by the backend service
 EXPOSE 5000

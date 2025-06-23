@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 # Load environment variables
 worker_directory = os.path.dirname(__file__)
@@ -7,7 +8,7 @@ env_file = os.path.join(worker_directory, 'secrets', '.env')
 load_dotenv(env_file)
 
 class Config:
-    """Configuration class for scripts"""
+    """Configuration class for worker service and general functionality"""
     
     # File paths
     WORKER_DIRECTORY = worker_directory
@@ -22,17 +23,28 @@ class Config:
     SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
     SPREADSHEET_FILE = os.path.join(ASSETS_DIRECTORY, EXCEL_FILE_NAME) if EXCEL_FILE_NAME else None
     
+    # Database Configuration
+    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@postgres:5432/stock_portfolio')
+    
     # RabbitMQ Configuration
-    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-    RABBITMQ_USERNAME = os.getenv('RABBITMQ_USERNAME', 'guest')
-    RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
+    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
+    RABBITMQ_USERNAME = os.getenv('RABBITMQ_USERNAME', 'username')
+    RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'password')
+    RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', '5672'))
+    
+    # Worker Configuration
+    WORKER_CONCURRENCY = int(os.getenv('WORKER_CONCURRENCY', '4'))
+    WORKER_TIMEOUT = int(os.getenv('WORKER_TIMEOUT', '300'))
     
     # Logging Configuration
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-    LOG_FILE = 'app.log'
+    LOG_FILE = os.getenv('LOG_FILE', 'worker.log')
+    
+    # Task Configuration
+    MAX_RETRIES = int(os.getenv('MAX_RETRIES', '3'))
+    RETRY_DELAY = int(os.getenv('RETRY_DELAY', '60'))  # seconds
     
     # Date formats
-    DATE_FORMAT = '%m/%d/%Y'
     YFINANCE_DATE_FORMAT = '%Y-%m-%d'
     ORDER_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
     DATA_TIME_FORMAT = "%Y-%m-%d"
@@ -51,4 +63,25 @@ class Config:
     COMPLETE = 'COMPLETE'
     DOT_NS = '.NS'
     DOT_BO = '.BO'
-    CELL_RANGE = 'A2:P999' 
+    CELL_RANGE = 'A2:P999'
+    
+    @classmethod
+    def get_rabbitmq_url(cls) -> str:
+        """Get RabbitMQ connection URL"""
+        return f"amqp://{cls.RABBITMQ_USERNAME}:{cls.RABBITMQ_PASSWORD}@{cls.RABBITMQ_HOST}:{cls.RABBITMQ_PORT}/"
+    
+    @classmethod
+    def validate(cls) -> bool:
+        """Validate configuration"""
+        required_vars = [
+            'DATABASE_URL',
+            'RABBITMQ_HOST',
+            'RABBITMQ_USERNAME',
+            'RABBITMQ_PASSWORD'
+        ]
+        
+        for var in required_vars:
+            if not getattr(cls, var):
+                raise ValueError(f"Required environment variable {var} is not set")
+        
+        return True 

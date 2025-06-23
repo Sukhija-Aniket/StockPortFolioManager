@@ -3,15 +3,18 @@ Google Sheets utilities for Stock Portfolio Manager
 """
 
 import gspread
-import requests
-import os
 import logging
 import pandas as pd
 import numpy as np
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import AuthorizedSession
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from .base_manager import BaseManager
-from ..constants import BUY, CELL_RANGE
+from ..constants.general_constants import BUY, CELL_RANGE
+from ..constants.trans_details_constants import TransDetails_constants
+from ..constants.share_profit_loss_constants import ShareProfitLoss_constants
+from ..constants.daily_profit_loss_constants import DailyProfitLoss_constants
+from ..constants.taxation_constants import Taxation_constants
 from ..utils.data_processor import DataProcessor
 
 logger = logging.getLogger(__name__)
@@ -19,26 +22,16 @@ logger = logging.getLogger(__name__)
 class SheetsManager(BaseManager):
     """Manages Google Sheets operations"""
     
-    def __init__(self, credentials):
-        self.credentials = credentials
+    def __init__(self):
         self.data_processor = DataProcessor()
     
-    def _get_spreadsheet(self,spreadsheet_id):
-        """Authenticate and get Google Sheets instance"""
-        logger.info("Authenticating Sheets: %s", spreadsheet_id)
+    def _get_column_index(self, headers, column_name):
+        """Get column index by name"""
         try:
-            credentials_obj = Credentials(**self.credentials)
-            # Use the custom HTTP client with disabled SSL validation
-            # Create a Session that skips SSL checks
-            session = AuthorizedSession(credentials_obj) 
-            session.verify = False  # disable cert validation
-            gc = gspread.Client(auth=credentials_obj, session=session)
-            spreadsheet = gc.open_by_key(spreadsheet_id)
-            logger.info("Authorized, this is the spreadsheet_id: %s", spreadsheet_id)
-            return spreadsheet
-        except Exception as e:
-            logger.error("Unable to authorize spreadsheet %s", e)
-            raise RuntimeError(f"Authorization Failed for spreadsheets: {e}")
+            return headers.index(column_name)
+        except ValueError:
+            logger.warning(f"Column '{column_name}' not found in headers: {headers}")
+            return None
     
     def read_data(self, spreadsheet, sheet_name):
         """Read data from Google Sheets"""
@@ -53,17 +46,16 @@ class SheetsManager(BaseManager):
         df = pd.DataFrame(data[1:], columns=data[0])
         return df
     
-    def upload_data(self, input_data, spreadsheet_id, sheet_name, allow_duplicates=False):
+    def add_data(self, input_data, spreadsheet, sheet_name, allow_duplicates=False, formatting_function=None):
         """Upload data to sheets"""
         try:
-            spreadsheet = self.get_spreadsheet(spreadsheet_id, sheet_name)
             raw_data = self.read_data(spreadsheet, sheet_name)
             validated_input_data = self.validate_data(raw_data, input_data)
             if not allow_duplicates and self.data_processor.data_already_exists(raw_data, validated_input_data):
                 logger.warning("Data already exists in Sheets, Skipping Upload")
                 return
             raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
-            self._update_data(spreadsheet, sheet_name, raw_data)
+            self.update_data(spreadsheet, sheet_name, raw_data, formatting_function)
             logger.info("Data uploaded successfully to Sheets")
         except Exception as e:
             logger.error(f"Error uploading data to sheets: {e}")
@@ -110,45 +102,70 @@ class SheetsManager(BaseManager):
             if data_values:
                 sheet.insert_rows(data_values, 2)
             
+            # Prepare batch formatting requests
+            formatting_requests = []
+            
             # Add formatting to headers
             num_columns = len(headers)
             if num_columns > 0:
-                # Calculate header range safely
-                if num_columns <= 26:
-                    header_range = f'A1:{chr(64 + num_columns)}1'
-                else:
-                    # Handle columns beyond Z (AA, AB, etc.)
-                    col_letter = self._get_column_letter(num_columns)
-                    header_range = f'A1:{col_letter}1'
-                
-                try:
-                    sheet.format(header_range, {"textFormat": {"bold": True}})
-                except Exception as e:
-                    logger.warning(f"Could not format headers: {e}")
+                # Header formatting request
+                header_format_request = {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet.id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": num_columns
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "textFormat": {
+                                    "bold": True
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.textFormat.bold"
+                    }
+                }
+                formatting_requests.append(header_format_request)
                 
                 # Format numeric columns with proper number format
                 if numeric_cols:
-                    try:
-                        # Format each numeric column individually to avoid range issues
-                        for col_name in numeric_cols:
-                            if col_name in headers:
-                                col_index = headers.index(col_name)
-                                if col_index < 26:
-                                    col_letter = chr(65 + col_index)
-                                else:
-                                    col_letter = self._get_column_letter(col_index + 1)
-                                
-                                # Format the entire column
-                                col_range = f'{col_letter}2:{col_letter}{len(data_values) + 1}'
-                                number_format = {
-                                    "numberFormat": {
-                                        "type": "NUMBER",
-                                        "pattern": "#,##0"
-                                    }
+                    for col_name in numeric_cols:
+                        if col_name in headers:
+                            col_index = headers.index(col_name)
+                            
+                            # Number format request for numeric columns
+                            number_format_request = {
+                                "repeatCell": {
+                                    "range": {
+                                        "sheetId": sheet.id,
+                                        "startRowIndex": 1,  # Start from row 2 (after headers)
+                                        "endRowIndex": len(data_values) + 1,
+                                        "startColumnIndex": col_index,
+                                        "endColumnIndex": col_index + 1
+                                    },
+                                    "cell": {
+                                        "userEnteredFormat": {
+                                            "numberFormat": {
+                                                "type": "NUMBER",
+                                                "pattern": "#,##0.00"
+                                            }
+                                        }
+                                    },
+                                    "fields": "userEnteredFormat.numberFormat"
                                 }
-                                sheet.format(col_range, number_format)
-                    except Exception as e:
-                        logger.warning(f"Could not format numeric columns: {e}")
+                            }
+                            formatting_requests.append(number_format_request)
+            
+            # Execute all formatting requests in one batch
+            if formatting_requests:
+                try:
+                    sheet.spreadsheet.batch_update({"requests": formatting_requests})
+                    logger.info(f"Batch formatting completed for {sheet.title}")
+                except Exception as e:
+                    logger.warning(f"Could not apply batch formatting: {e}")
             
             logger.info(f"Displaying and formatting data in {sheet.title} completed")
             
@@ -174,7 +191,7 @@ class SheetsManager(BaseManager):
             result = chr(65 + remainder) + result
         return result
     
-    def _update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
+    def update_data(self, spreadsheet, sheet_name, data, formatting_function=None):
         """Update Google Sheets with data"""
         sheet = self._initialize_sheets(spreadsheet, sheet_name)
         self.display_and_format_sheets(sheet, data)
@@ -182,18 +199,30 @@ class SheetsManager(BaseManager):
             formatting_function(spreadsheet, sheet)
         logger.info(f"{sheet_name} updated Successfully!")
     
-    def get_sheet_names(self, spreadsheet_id):
-        spreadsheet = self._get_spreadsheet(spreadsheet_id)
+    def get_sheet_names(self, spreadsheet_task: SpreadsheetTask):
+        spreadsheet = self.get_spreadsheet(spreadsheet_task)
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
         return sheet_names
     
-    def get_spreadsheet(self, spreadsheet_id):
+    def get_spreadsheet(self, spreadsheet_task: SpreadsheetTask):
         """Get sheets data"""
-        spreadsheet = self._get_spreadsheet(spreadsheet_id)
-        return spreadsheet
+        logger.info("Authenticating Sheets: %s", spreadsheet_task.spreadsheet_id)
+        try:
+            credentials_obj = Credentials(**spreadsheet_task.credentials)
+            # Use the custom HTTP client with disabled SSL validation
+            # Create a Session that skips SSL checks
+            session = AuthorizedSession(credentials_obj) 
+            session.verify = False  # disable cert validation
+            gc = gspread.Client(auth=credentials_obj, session=session)
+            spreadsheet = gc.open_by_key(spreadsheet_task.spreadsheet_id)
+            logger.info("Authorized, this is the spreadsheet_id: %s", spreadsheet_task.spreadsheet_id)
+            return spreadsheet
+        except Exception as e:
+            logger.error("Unable to authorize spreadsheet %s", e)
+            raise RuntimeError(f"Authorization Failed for spreadsheets: {e}")
     
-    def _get_backgroundColor_formatting_request(sheet, row_number, row_data, background_color):
+    def _get_backgroundColor_formatting_request(self,sheet, row_number, row_data, background_color):
         format_request = {
             "repeatCell": {
                 "range": {
@@ -219,57 +248,150 @@ class SheetsManager(BaseManager):
     
     def transDetails_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
+        if len(worksheet_data) < 2:
+            return
+            
+        # Convert to pandas DataFrame
+        headers = worksheet_data[0]
+        data_values = worksheet_data[1:]
+        df = pd.DataFrame(data_values, columns=headers)
+        
+        # Check if required columns exist
+        if TransDetails_constants.TRANSACTION_TYPE not in df.columns:
+            logger.error(f"Transaction Type column not found in headers: {headers}")
+            return
+            
         requests = []
-        for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-            transaction_type = row_data[6]
+        for row_number, row in df.iterrows():
+            try:
+                transaction_type = row[TransDetails_constants.TRANSACTION_TYPE] if row[TransDetails_constants.TRANSACTION_TYPE] is not None else ''
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid row data: {row}")
+                continue
+                
             if transaction_type == BUY:
                 background_color = (0.8, 0.9, 1)
             else:
                 background_color = (1, 0.8, 0.8)
-            format_request = self._get_backgroundColor_formatting_request(sheet, row_number, row_data, background_color)
+            # Convert row back to list for formatting
+            row_data = row.tolist()
+            format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
             requests.append(format_request)
         if len(requests) > 0:
             spreadsheet.batch_update({"requests": requests})
     
     def shareProfitLoss_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
+        if len(worksheet_data) < 2:
+            return
+            
+        # Convert to pandas DataFrame
+        headers = worksheet_data[0]
+        data_values = worksheet_data[1:]
+        df = pd.DataFrame(data_values, columns=headers)
+        
+        # Check if required columns exist
+        if ShareProfitLoss_constants.SHARES_REMAINING not in df.columns or ShareProfitLoss_constants.NET_PROFIT not in df.columns:
+            logger.error(f"Required columns not found in headers: {headers}")
+            return
+            
         requests = []
-        for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-            remaining_shares = int(row_data[7])
-            profit = float(row_data[9])
-            if remaining_shares == 0:
+        for row_number, row in df.iterrows():
+            try:
+                remaining_shares = pd.to_numeric(row[ShareProfitLoss_constants.SHARES_REMAINING], errors='coerce', thousands=',') if row[ShareProfitLoss_constants.SHARES_REMAINING] is not None else 0
+                profit = pd.to_numeric(row[ShareProfitLoss_constants.NET_PROFIT], errors='coerce', thousands=',') if row[ShareProfitLoss_constants.NET_PROFIT] is not None else 0.0
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid row data: {row}")
+                continue
+                
+            if abs(remaining_shares) < 0.01:  # Check if effectively zero (handles floating point precision)
                 if profit > 0:
                     background_color = (0.8, 0.9, 1)
                 else:
                     background_color = (1, 0.8, 0.8)
-                format_request = self._get_backgroundColor_formatting_request(sheet,row_number, row_data, background_color)
+                # Convert row back to list for formatting
+                row_data = row.tolist()
+                format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
                 requests.append(format_request)
         if len(requests) > 0:
             spreadsheet.batch_update({"requests": requests})
     
     def dailyProfitLoss_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
+        if len(worksheet_data) < 2:
+            return
+            
+        # Convert to pandas DataFrame
+        headers = worksheet_data[0]
+        data_values = worksheet_data[1:]
+        df = pd.DataFrame(data_values, columns=headers)
+        
+        # Check if required columns exist
+        if DailyProfitLoss_constants.DAILY_SPENDINGS not in df.columns:
+            logger.error(f"Daily Spendings column not found in headers: {headers}")
+            return
+            
         requests = []
-        for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-            if row_data[10] != "":
-                if float(row_data[10]) > 0.0:
-                    background_color = (0.8, 0.9, 1)
-                else:
-                    background_color = (1, 0.8, 0.8)
-                format_request = self._get_backgroundColor_formatting_request(sheet,row_number, row_data, background_color)
-                requests.append(format_request)
+        for row_number, row in df.iterrows():
+            try:
+                daily_spendings = row[DailyProfitLoss_constants.DAILY_SPENDINGS] if row[DailyProfitLoss_constants.DAILY_SPENDINGS] is not None else ''
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid row data: {row}")
+                continue
+                
+            if daily_spendings != "":
+                try:
+                    # Remove commas and convert to float
+                    clean_spendings = daily_spendings.replace(',', '')
+                    spendings_value = pd.to_numeric(clean_spendings, errors='coerce', thousands=',')
+                    if spendings_value > 0.0:
+                        background_color = (0.8, 0.9, 1)
+                    else:
+                        background_color = (1, 0.8, 0.8)
+                    # Convert row back to list for formatting
+                    row_data = row.tolist()
+                    format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
+                    requests.append(format_request)
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid daily spendings value: {daily_spendings}")
+                    continue
         if len(requests) > 0:
             spreadsheet.batch_update({"requests": requests})
     
     def taxation_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
+        if len(worksheet_data) < 2:
+            return
+            
+        # Convert to pandas DataFrame
+        headers = worksheet_data[0]
+        data_values = worksheet_data[1:]
+        df = pd.DataFrame(data_values, columns=headers)
+        
+        # Check if required columns exist
+        required_columns = [Taxation_constants.LTCG, Taxation_constants.STCG, Taxation_constants.INTRADAY_INCOME]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"Required taxation columns not found in headers: {missing_columns}")
+            return
+            
         requests = []
-        for row_number, row_data in  enumerate(worksheet_data[1:], start=2):
-            if (float(row_data[2]) + float(row_data[3]) + float(row_data[4])) >= 0:
+        for row_number, row in df.iterrows():
+            try:
+                ltcg = pd.to_numeric(row[Taxation_constants.LTCG], errors='coerce', thousands=',') if row[Taxation_constants.LTCG] is not None else 0.0
+                stcg = pd.to_numeric(row[Taxation_constants.STCG], errors='coerce', thousands=',') if row[Taxation_constants.STCG] is not None else 0.0
+                intraday_income = pd.to_numeric(row[Taxation_constants.INTRADAY_INCOME], errors='coerce', thousands=',') if row[Taxation_constants.INTRADAY_INCOME] is not None else 0.0
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid row data: {row}")
+                continue
+                
+            if (ltcg + stcg + intraday_income) >= 0:
                 background_color = (0.8, 0.9, 1)
             else:
                 background_color = (1, 0.8, 0.8)
-            format_request = self._get_backgroundColor_formatting_request(sheet,row_number, row_data, background_color)
+            # Convert row back to list for formatting
+            row_data = row.tolist()
+            format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
             requests.append(format_request)
         if len(requests) > 0:
             spreadsheet.batch_update({"requests": requests})
