@@ -15,6 +15,21 @@ class DataProcessor:
     """Manages data processing operations"""
     
     @staticmethod
+    def safe_numeric(value, default=0.0):
+        """Safely convert value to numeric, handling commas and None values"""
+        if value is None or value == '':
+            return default
+        try:
+            # Remove commas and convert to float
+            if isinstance(value, str):
+                clean_value = value.replace(',', '')
+                return pd.to_numeric(clean_value, errors='coerce')
+            return pd.to_numeric(value, errors='coerce')
+        except (ValueError, TypeError):
+            logger.warning(f"Could not convert '{value}' to numeric, using default {default}")
+            return default
+    
+    @staticmethod
     def get_symbol(row):
         """Extract symbol from row data"""
         symbol = row[Data_constants.NAME]
@@ -40,7 +55,9 @@ class DataProcessor:
     @staticmethod
     def get_net_amount(row):
         """Calculate net amount from row"""
-        val = pd.to_numeric(row[Raw_constants.QUANTITY], errors='coerce', thousands=',') * pd.to_numeric(row[Raw_constants.PRICE], errors='coerce', thousands=',')
+        quantity = DataProcessor.safe_numeric(row[Raw_constants.QUANTITY])
+        price = DataProcessor.safe_numeric(row[Raw_constants.PRICE])
+        val = quantity * price
         return str(val)
     
     @staticmethod

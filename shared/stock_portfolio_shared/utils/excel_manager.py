@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 class ExcelManager(BaseManager):
     """Manages Excel operations"""
     
-    def __init__(self):
-        self.data_processor = DataProcessor()
-    
     def load_workbook(self, spreadsheet_file):
         """Load Excel workbook"""
         return openpyxl.load_workbook(spreadsheet_file)
@@ -85,7 +82,7 @@ class ExcelManager(BaseManager):
             validated_input_data = self.validate_data(raw_data, input_data)
             
             if not allow_duplicates:
-                if self.data_processor.data_already_exists(raw_data, validated_input_data):
+                if DataProcessor.data_already_exists(raw_data, validated_input_data):
                     logger.info("Data already exists in Excel")
                     return
             raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
@@ -138,9 +135,9 @@ class ExcelManager(BaseManager):
         for row in sheet[cell_range]:
             if row[0].value is None or row[0].value == '':
                 break
-            remaining_shares = pd.to_numeric(row[7].value, errors='coerce', thousands=',')
-            profit = pd.to_numeric(row[9].value, errors='coerce', thousands=',')
-            if remaining_shares == 0:
+            remaining_shares = DataProcessor.safe_numeric(row[7].value)
+            profit = DataProcessor.safe_numeric(row[9].value)
+            if abs(remaining_shares) < 0.01:  # Check if effectively zero
                 if profit >= 0.0:
                     for cell in row:
                         cell.fill = blueFill
@@ -156,7 +153,8 @@ class ExcelManager(BaseManager):
             if row[0].value is None or row[0].value == '':
                 break
             if row[9].value != '':
-                if pd.to_numeric(row[9].value, errors='coerce', thousands=',') > 0.0:
+                spendings_value = DataProcessor.safe_numeric(row[9].value)
+                if spendings_value > 0.0:
                     for cell in row:
                         cell.fill = blueFill
                 else :
@@ -171,10 +169,13 @@ class ExcelManager(BaseManager):
             if row[0].value is None or row[0].value == '':
                 break
             if row[9].value != '':
-                if pd.to_numeric(row[2].value, errors='coerce', thousands=',') + pd.to_numeric(row[3].value, errors='coerce', thousands=',') + pd.to_numeric(row[4].value, errors='coerce', thousands=',') > 0.0:
+                total_tax = (DataProcessor.safe_numeric(row[2].value) + 
+                           DataProcessor.safe_numeric(row[3].value) + 
+                           DataProcessor.safe_numeric(row[4].value))
+                if total_tax > 0.0:
                     for cell in row:
                         cell.fill = blueFill
-                elif pd.to_numeric(row[2].value, errors='coerce', thousands=',') + pd.to_numeric(row[3].value, errors='coerce', thousands=',') + pd.to_numeric(row[4].value, errors='coerce', thousands=',') < 0.0:
+                elif total_tax < 0.0:
                     for cell in row:
                         cell.fill = redFill
                         

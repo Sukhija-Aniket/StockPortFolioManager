@@ -12,6 +12,7 @@ from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from .base_manager import BaseManager
 from ..constants.general_constants import BUY, CELL_RANGE
 from ..constants.trans_details_constants import TransDetails_constants
+from ..constants.raw_constants import Raw_constants
 from ..constants.share_profit_loss_constants import ShareProfitLoss_constants
 from ..constants.daily_profit_loss_constants import DailyProfitLoss_constants
 from ..constants.taxation_constants import Taxation_constants
@@ -21,9 +22,6 @@ logger = logging.getLogger(__name__)
 
 class SheetsManager(BaseManager):
     """Manages Google Sheets operations"""
-    
-    def __init__(self):
-        self.data_processor = DataProcessor()
     
     def _get_column_index(self, headers, column_name):
         """Get column index by name"""
@@ -51,7 +49,7 @@ class SheetsManager(BaseManager):
         try:
             raw_data = self.read_data(spreadsheet, sheet_name)
             validated_input_data = self.validate_data(raw_data, input_data)
-            if not allow_duplicates and self.data_processor.data_already_exists(raw_data, validated_input_data):
+            if not allow_duplicates and DataProcessor.data_already_exists(raw_data, validated_input_data):
                 logger.warning("Data already exists in Sheets, Skipping Upload")
                 return
             raw_data = pd.concat([raw_data, validated_input_data], ignore_index=True)
@@ -298,8 +296,8 @@ class SheetsManager(BaseManager):
         requests = []
         for row_number, row in df.iterrows():
             try:
-                remaining_shares = pd.to_numeric(row[ShareProfitLoss_constants.SHARES_REMAINING], errors='coerce', thousands=',') if row[ShareProfitLoss_constants.SHARES_REMAINING] is not None else 0
-                profit = pd.to_numeric(row[ShareProfitLoss_constants.NET_PROFIT], errors='coerce', thousands=',') if row[ShareProfitLoss_constants.NET_PROFIT] is not None else 0.0
+                remaining_shares = DataProcessor.safe_numeric(row[ShareProfitLoss_constants.SHARES_REMAINING])
+                profit = DataProcessor.safe_numeric(row[ShareProfitLoss_constants.NET_PROFIT])
             except (ValueError, TypeError):
                 logger.warning(f"Invalid row data: {row}")
                 continue
@@ -341,9 +339,7 @@ class SheetsManager(BaseManager):
                 
             if daily_spendings != "":
                 try:
-                    # Remove commas and convert to float
-                    clean_spendings = daily_spendings.replace(',', '')
-                    spendings_value = pd.to_numeric(clean_spendings, errors='coerce', thousands=',')
+                    spendings_value = DataProcessor.safe_numeric(daily_spendings)
                     if spendings_value > 0.0:
                         background_color = (0.8, 0.9, 1)
                     else:
@@ -378,9 +374,9 @@ class SheetsManager(BaseManager):
         requests = []
         for row_number, row in df.iterrows():
             try:
-                ltcg = pd.to_numeric(row[Taxation_constants.LTCG], errors='coerce', thousands=',') if row[Taxation_constants.LTCG] is not None else 0.0
-                stcg = pd.to_numeric(row[Taxation_constants.STCG], errors='coerce', thousands=',') if row[Taxation_constants.STCG] is not None else 0.0
-                intraday_income = pd.to_numeric(row[Taxation_constants.INTRADAY_INCOME], errors='coerce', thousands=',') if row[Taxation_constants.INTRADAY_INCOME] is not None else 0.0
+                ltcg = DataProcessor.safe_numeric(row[Taxation_constants.LTCG])
+                stcg = DataProcessor.safe_numeric(row[Taxation_constants.STCG])
+                intraday_income = DataProcessor.safe_numeric(row[Taxation_constants.INTRADAY_INCOME])
             except (ValueError, TypeError):
                 logger.warning(f"Invalid row data: {row}")
                 continue

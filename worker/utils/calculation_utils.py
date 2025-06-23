@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
 from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants
+from stock_portfolio_shared.utils.data_processor import DataProcessor
 from config import Config
 from utils.logging_config import setup_logging
 logger = setup_logging(__name__)
@@ -11,7 +12,7 @@ config = Config()
 def calculate_stt(row):
     """Calculate Securities Transaction Tax"""
     try:
-        net_amount = _safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
         if row[TransDetails_constants.TRANSACTION_TYPE] == config.BUY:
             return abs(net_amount * 0.0005)
         else:
@@ -23,7 +24,7 @@ def calculate_stt(row):
 def calculate_transaction_charges(row):
     """Calculate SEBI transaction charges"""
     try:
-        net_amount = _safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
         return abs(net_amount * 0.000001)
     except Exception as e:
         logger.error(f"Error calculating transaction charges: {e}")
@@ -33,7 +34,7 @@ def calculate_brokerage(row):
     """Calculate brokerage charges"""
     try:
         # Simple brokerage calculation - can be customized based on broker
-        net_amount = _safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
         return abs(net_amount * 0.0005)
     except Exception as e:
         logger.error(f"Error calculating brokerage: {e}")
@@ -42,7 +43,7 @@ def calculate_brokerage(row):
 def calculate_stamp_duty(row):
     """Calculate stamp duty"""
     try:
-        net_amount = _safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
         return abs(net_amount * 0.00015)
     except Exception as e:
         logger.error(f"Error calculating stamp duty: {e}")
@@ -52,19 +53,10 @@ def calculate_dp_charges(row, dp_data=None):
     """Calculate DP charges"""
     try:
         # Default DP charges - can be customized
-        quantity = _safe_numeric(row[TransDetails_constants.QUANTITY])
+        quantity = DataProcessor.safe_numeric(row[TransDetails_constants.QUANTITY])
         return 13.5 if quantity > 0 else 0
     except Exception as e:
         logger.error(f"Error calculating DP charges: {e}")
-        return 0
-
-def _safe_numeric(value):
-    """Safely convert value to numeric"""
-    try:
-        if pd.isna(value):
-            return 0
-        return pd.to_numeric(value, errors='coerce')
-    except (ValueError, TypeError):
         return 0
 
 def calculate_average_cost_of_sold_shares(info_map):
@@ -77,8 +69,8 @@ def calculate_average_cost_of_sold_shares(info_map):
             # Process DataFrame group instead of list
             for _, transaction in info_map[config.BUY].iterrows():
                 try:
-                    final_amount = pd.to_numeric(transaction[TransDetails_constants.FINAL_AMOUNT], errors='coerce', thousands=',') if transaction[TransDetails_constants.FINAL_AMOUNT] is not None else 0.0
-                    quantity = pd.to_numeric(transaction[TransDetails_constants.QUANTITY], errors='coerce', thousands=',') if transaction[TransDetails_constants.QUANTITY] is not None else 0.0
+                    final_amount = DataProcessor.safe_numeric(transaction[TransDetails_constants.FINAL_AMOUNT])
+                    quantity = DataProcessor.safe_numeric(transaction[TransDetails_constants.QUANTITY])
                     total_cost += final_amount
                     total_shares += quantity
                 except (ValueError, TypeError):
@@ -141,7 +133,7 @@ def update_transaction_type(quantity):
     """
     try:
         # Convert to integer and check if positive or negative
-        quantity_int = pd.to_numeric(quantity, errors='coerce', thousands=',') if quantity is not None else 0
+        quantity_int = DataProcessor.safe_numeric(quantity)
         
         if quantity_int >= 0:
             return config.BUY
@@ -151,7 +143,7 @@ def update_transaction_type(quantity):
     except (ValueError, TypeError) as e:
         logger.error(f"Error determining transaction type for quantity {quantity}: {e}")
         # Default to BUY on error
-        return config.BUY 
+        return config.BUY
 
 def convert_dtypes(df):
     """Convert data types in dataframe"""

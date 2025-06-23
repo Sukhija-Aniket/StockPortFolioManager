@@ -16,7 +16,6 @@ class DataService:
     """Service class for handling data processing and upload operations"""
     
     def __init__(self):
-        self.data_processor = DataProcessor()
         self.sheets_manager = SheetsManager()
         self.excel_manager = ExcelManager()
         self.rabbitmq_config = {
@@ -79,7 +78,7 @@ class DataService:
                 logger.info(f"Processing file: {file_path}")
                 input_data = pd.read_csv(file_path)
                 # Use shared library's data processor for formatting
-                final_input_data = self.data_processor.format_add_data(input_data)
+                final_input_data = DataProcessor.format_add_data(input_data)
                 spreadsheet = manager.get_spreadsheet(spreadsheet_task)
                 return manager.add_data(final_input_data, spreadsheet, sheet_names[0])
         except Exception as e:

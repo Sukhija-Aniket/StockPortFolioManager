@@ -10,7 +10,8 @@ from config import Config
 from helper.market_data_helper import MarketDataHelper
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
-from utils.calculation_utils import (
+from stock_portfolio_shared.utils.data_processor import DataProcessor
+from worker.utils.calculation_utils import (
     calculate_stt, calculate_transaction_charges, calculate_brokerage,
     calculate_stamp_duty, calculate_dp_charges, calculate_average_cost_of_sold_shares,
     is_long_term, update_intraday_count, convert_dtypes, update_transaction_type
@@ -30,7 +31,7 @@ class DataProcessingService:
     
     
     def initialize_data(self, data, extra_cols=None, sort_list=None):
-        """Initialize data with additional columns and sorting"""
+        """Initialize data with extra columns and sorting"""
         try:
             if extra_cols:
                 for col in extra_cols:
@@ -41,24 +42,16 @@ class DataProcessingService:
                 data = data.sort_values(by=sort_list)
             
             return data
-            
         except Exception as e:
             logger.error(f"Error initializing data: {e}")
             raise
-    def _safe_numeric_conversion(self, data, column):
-        """Safely convert column to numeric values"""
-        try:
-            return pd.to_numeric(data[column], errors='coerce').fillna(0)
-        except (ValueError, TypeError):
-            logger.warning(f"Failed to convert {column} to numeric, using 0")
-            return pd.Series([0] * len(data))
     
     def process_transaction_details(self, data):
         """Process transaction details data"""
         try:
-            # Ensure numeric columns are properly converted
-            data[TransDetails_constants.QUANTITY] = self._safe_numeric_conversion(data, TransDetails_constants.QUANTITY)
-            data[TransDetails_constants.NET_AMOUNT] = self._safe_numeric_conversion(data, TransDetails_constants.NET_AMOUNT)
+            # Ensure numeric columns are properly converted using DataProcessor.safe_numeric
+            data[TransDetails_constants.QUANTITY] = data[TransDetails_constants.QUANTITY].apply(DataProcessor.safe_numeric)
+            data[TransDetails_constants.NET_AMOUNT] = data[TransDetails_constants.NET_AMOUNT].apply(DataProcessor.safe_numeric)
             
             # Update transaction types
             data[TransDetails_constants.TRANSACTION_TYPE] = data[TransDetails_constants.QUANTITY].apply(
@@ -209,8 +202,8 @@ class DataProcessingService:
         for _, transaction in transactions[self.config.SELL].iterrows():
             # Access data using proper column names
             try:
-                net_amount = pd.to_numeric(transaction[TransDetails_constants.FINAL_AMOUNT], errors='coerce', thousands=',') if transaction[TransDetails_constants.FINAL_AMOUNT] is not None else 0.0
-                quantity = pd.to_numeric(transaction[TransDetails_constants.QUANTITY], errors='coerce', thousands=',') if transaction[TransDetails_constants.QUANTITY] is not None else 0.0
+                net_amount = DataProcessor.safe_numeric(transaction[TransDetails_constants.FINAL_AMOUNT])
+                quantity = DataProcessor.safe_numeric(transaction[TransDetails_constants.QUANTITY])
             except (ValueError, TypeError):
                 net_amount = 0.0
                 quantity = 0.0
@@ -224,7 +217,7 @@ class DataProcessingService:
         if self.config.BUY in transactions:
             for _, transaction in transactions[self.config.BUY].iterrows():
                 try:
-                    net_amount = pd.to_numeric(transaction[TransDetails_constants.FINAL_AMOUNT], errors='coerce', thousands=',') if transaction[TransDetails_constants.FINAL_AMOUNT] is not None else 0.0
+                    net_amount = DataProcessor.safe_numeric(transaction[TransDetails_constants.FINAL_AMOUNT])
                 except (ValueError, TypeError):
                     net_amount = 0.0
                 current_investment += net_amount
@@ -245,10 +238,9 @@ class DataProcessingService:
         
         # Process each row in the DataFrame group
         for _, transaction in transactions[self.config.BUY].iterrows():
-            # Access data using proper column names
             try:
-                net_amount = pd.to_numeric(transaction[TransDetails_constants.FINAL_AMOUNT], errors='coerce', thousands=',') if transaction[TransDetails_constants.FINAL_AMOUNT] is not None else 0.0
-                quantity = pd.to_numeric(transaction[TransDetails_constants.QUANTITY], errors='coerce', thousands=',') if transaction[TransDetails_constants.QUANTITY] is not None else 0.0
+                net_amount = DataProcessor.safe_numeric(transaction[TransDetails_constants.FINAL_AMOUNT])
+                quantity = DataProcessor.safe_numeric(transaction[TransDetails_constants.QUANTITY])
             except (ValueError, TypeError):
                 net_amount = 0.0
                 quantity = 0.0
@@ -263,7 +255,7 @@ class DataProcessingService:
         row_data[ShareProfitLoss_constants.AVERAGE_BUY_PRICE] = average_buy_price
         row_data[ShareProfitLoss_constants.SHARES_BOUGHT] = num_shares_bought
         row_data[ShareProfitLoss_constants.TOTAL_INVESTMENT] = total_investment
-        row_data[ShareProfitLoss_constants.CURRENT_INVESTMENT] = current_investment 
+        row_data[ShareProfitLoss_constants.CURRENT_INVESTMENT] = current_investment
 
     def _get_stock_price(self, date: datetime, name: str) -> list:
         return self.market_data_helper.get_stock_price_details(date, name)
