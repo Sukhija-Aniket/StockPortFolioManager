@@ -385,9 +385,8 @@ class DataProcessingService:
             ]
             data = self.initialize_data(data, extra_cols=extra_cols)
             
-            
             # Group by transaction type, name and date
-            grouped_data = data.groupby(TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE)
+            grouped_data = data.groupby([TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE])
             
             infoMap = {}
             rowData = {}
@@ -410,18 +409,25 @@ class DataProcessingService:
                     infoMap[name][date] = {}
                     rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
                 if transaction_type not in infoMap[name][date]:
-                    infoMap[name][date][transaction_type] = group.values.tolist()
+                    infoMap[name][date][transaction_type] = group
                     if transaction_type == BUY:
                         if name not in global_buy_data:
                             global_buy_data[name] = []
-                        for x in infoMap[name][date][BUY]:
-                            global_buy_data[name].append([x[0], x[3], x[7]]) # date, quantity, final amount
+                        for _, transaction in group.iterrows():
+                            global_buy_data[name].append([
+                                transaction[Raw_constants.DATE], 
+                                transaction[Raw_constants.QUANTITY], 
+                                transaction[TransDetails_constants.FINAL_AMOUNT]
+                            ])
                     else:
                         if name not in global_sell_data:
                             global_sell_data[name] = []
-                        for x in infoMap[name][date][SELL]:
-                            global_sell_data[name].append([x[0], abs(x[3]), abs(x[7])]) # date, quantity, final amount
-                
+                        for _, transaction in group.iterrows():
+                            global_sell_data[name].append([
+                                transaction[Raw_constants.DATE], 
+                                abs(transaction[Raw_constants.QUANTITY]), 
+                                abs(transaction[TransDetails_constants.FINAL_AMOUNT])
+                            ])
                 
                 if transaction_type == SELL:
                     buyData = []
@@ -429,12 +435,22 @@ class DataProcessingService:
                     
                     if BUY in infoMap[name][date]:
                         intraMap[name][date] = 0.0
-                        for x in infoMap[name][date][BUY]:
-                            buyData.append([x[3], x[7]])
-                        for x in infoMap[name][date][transaction_type]:
-                            sellData.append([abs(x[3]), abs(x[7])])
+                        
+                        # Process buy transactions
+                        for _, transaction in infoMap[name][date][BUY].iterrows():
+                            buyData.append([
+                                transaction[Raw_constants.QUANTITY], 
+                                transaction[TransDetails_constants.FINAL_AMOUNT]
+                            ])
+                        
+                        # Process sell transactions
+                        for _, transaction in infoMap[name][date][transaction_type].iterrows():
+                            sellData.append([
+                                abs(transaction[Raw_constants.QUANTITY]), 
+                                abs(transaction[TransDetails_constants.FINAL_AMOUNT])
+                            ])
                             
-                        i,j = 0,0
+                        i, j = 0, 0
                         while i < len(buyData) and j < len(sellData):
                             buyCnt = buyData[i][0]
                             sellCnt = sellData[j][0]
@@ -467,11 +483,10 @@ class DataProcessingService:
                         temp = intraMap[name][date]
                         intraMap[name][date] = [temp, temp]
                     
-                    
             # Writing algorithm to find the long term and short term capital gains
             for name in infoMap.keys():
                 # Firstly I am reducing the intraday things, 
-                i,j = 0, 0
+                i, j = 0, 0
                 while i < len(global_buy_data[name]):
                     buyDetails = global_buy_data[name][i]
                     if buyDetails[0] in intraMap[name]:
@@ -492,7 +507,7 @@ class DataProcessingService:
                     j += 1
                     
                 # Now I will iterate again to find the LTCG and STCG for those stocks
-                i,j = 0, 0
+                i, j = 0, 0
                 while i < len(global_buy_data[name]) and name in global_sell_data and j < len(global_sell_data[name]):
                     buyDetails = global_buy_data[name][i]
                     sellDetails = global_sell_data[name][j]
@@ -522,11 +537,7 @@ class DataProcessingService:
                     if sellDetails[1] == 0:
                         j += 1
                 
-            #### end here
-            
-            
             # Finally forming the answer
-             # Finally forming the answer
             for name, details in rowData.items():
                 new_row = pd.Series({
                     Taxation_constants.DATE: details[Taxation_constants.DATE],
