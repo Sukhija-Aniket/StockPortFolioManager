@@ -11,7 +11,7 @@ from helper.market_data_helper import MarketDataHelper
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
 from stock_portfolio_shared.utils.data_processor import DataProcessor
-from worker.utils.calculation_utils import (
+from utils.calculation_utils import (
     calculate_stt, calculate_transaction_charges, calculate_brokerage,
     calculate_stamp_duty, calculate_dp_charges, calculate_average_cost_of_sold_shares,
     is_long_term, update_intraday_count, convert_dtypes, update_transaction_type

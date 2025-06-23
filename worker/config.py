@@ -26,6 +26,11 @@ class Config:
     # Database Configuration
     DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@postgres:5432/stock_portfolio')
     
+    # Database Pool Configuration
+    DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '10'))
+    DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', '20'))
+    DB_POOL_RECYCLE = int(os.getenv('DB_POOL_RECYCLE', '3600'))  # 1 hour
+    
     # RabbitMQ Configuration
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'rabbitmq')
     RABBITMQ_USERNAME = os.getenv('RABBITMQ_USERNAME', 'username')

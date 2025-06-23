@@ -108,6 +108,11 @@ services:
       - RABBITMQ_PASSWORD=password
       - WORKER_CONCURRENCY=4  # Number of concurrent tasks
       - WORKER_TIMEOUT=300    # Task timeout in seconds
+      - DB_POOL_SIZE=10       # Database connection pool size
+      - DB_MAX_OVERFLOW=20    # Maximum additional database connections
+      - DB_POOL_RECYCLE=3600  # Database connection recycle time (seconds)
+      - MAX_RETRIES=3
+      - RETRY_DELAY=60
     depends_on:
       postgres:
         condition: service_healthy

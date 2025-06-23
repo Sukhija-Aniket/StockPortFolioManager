@@ -67,6 +67,10 @@ class ExecutionRecordService:
         Args:
             execution_record: Execution record to save
         """
+        if execution_record is None:
+            logger.warning("Attempted to save None execution record")
+            return
+            
         db = next(get_db())
         try:
             # Update the record in the database
@@ -192,9 +196,14 @@ class ExecutionRecordService:
             execution_record: Execution record to update
             data: Data to generate hash from
         """
+        if execution_record is None:
+            logger.warning("Attempted to update data hash for None execution record")
+            return
+            
         db = next(get_db())
         try:
             execution_record.data_hash = self.get_data_hash(data)
+            db.merge(execution_record)
             db.commit()
             logger.debug(f"Updated data hash for execution record {execution_record.id}")
         except Exception as e:

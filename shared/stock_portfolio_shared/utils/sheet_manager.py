@@ -89,8 +89,9 @@ class SheetsManager(BaseManager):
         try:
             # Convert numeric columns
             numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
-            data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Convert string to numeric
+            data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Keep using to_numeric here instead of DataProcessor.safe_numeric
             data[numeric_cols] = data[numeric_cols].round(4)
+            
             
             headers = data.columns.tolist() 
             data_values = data.values.tolist() 

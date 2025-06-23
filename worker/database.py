@@ -1,17 +1,20 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import QueuePool
 from sqlalchemy import text
 from config import Config
 from utils.logging_config import setup_logging
 
 logger = setup_logging(__name__)
 
-# Create engine
+# Create engine with QueuePool for better concurrent access
 engine = create_engine(
     Config.DATABASE_URL,
-    poolclass=StaticPool,
-    pool_pre_ping=True,
+    poolclass=QueuePool,
+    pool_size=Config.DB_POOL_SIZE,  # Number of connections to maintain
+    max_overflow=Config.DB_MAX_OVERFLOW,  # Additional connections that can be created
+    pool_pre_ping=True,  # Verify connections before use
+    pool_recycle=Config.DB_POOL_RECYCLE,  # Recycle connections after configured time
     echo=False  # Set to True for SQL debugging
 )
 

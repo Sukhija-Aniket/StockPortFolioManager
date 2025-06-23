@@ -36,7 +36,7 @@ class ExecutionRecord(Base):
     
     # Retry information
     retry_count = Column(Integer, default=0)
-    max_retries = Column(Integer, default=3)
+    max_retries = Column(Integer, default=0)
     last_retry_time = Column(DateTime)
     
     def __repr__(self):

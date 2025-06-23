@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 import pandas as pd
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
 from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants

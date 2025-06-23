@@ -10,6 +10,7 @@ from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
 from concurrent.futures import ThreadPoolExecutor
+from pika.channel import Channel
 
 
 sheets_manager = SheetsManager()
@@ -77,7 +78,7 @@ class AsyncWorker:
         self.executor.shutdown(wait=True)
         logger.info("AsyncWorker shutdown complete")
 
-async def async_callback(ch, method, properties, body, worker: AsyncWorker):
+async def async_callback(ch: Channel, method: pika.spec.Basic.Deliver, properties: pika.spec.BasicProperties, body: bytes, worker: AsyncWorker) -> None:
     """Async RabbitMQ message callback"""
     try:
         data = json.loads(body)
@@ -101,10 +102,42 @@ async def async_callback(ch, method, properties, body, worker: AsyncWorker):
         
     except Exception as e:
         logger.error(f"Error in async callback: {e}")
-        # Reject message and requeue
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        
+        # Get retry count from message headers
+        headers = properties.headers or {}
+        retry_count = headers.get('retry_count', 0)
+        max_retries = Config.MAX_RETRIES
+        
+        if retry_count < max_retries:
+            # Increment retry count and republish with updated headers
+            new_headers = headers.copy()
+            new_headers['retry_count'] = retry_count + 1
+            
+            # Create new properties with updated headers
+            new_properties = pika.spec.BasicProperties(
+                headers=new_headers,
+                delivery_mode=properties.delivery_mode,
+                content_type=properties.content_type
+            )
+            
+            logger.warning(f"Requeuing message for retry {retry_count + 1}/{max_retries}")
+            
+            # Republish message with updated retry count
+            ch.basic_publish(
+                exchange='',
+                routing_key='task_queue',
+                body=body,
+                properties=new_properties
+            )
+            
+            # Acknowledge the original message
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        else:
+            # Max retries reached, reject without requeue (goes to DLQ)
+            logger.error(f"Max retries ({max_retries}) reached, message will go to DLQ")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
-def sync_callback(ch, method, properties, body, worker: AsyncWorker):
+def sync_callback(ch: pika.channel.Channel, method: pika.spec.Basic.Deliver, properties: pika.spec.BasicProperties, body: bytes, worker: AsyncWorker) -> None:
     """Synchronous callback wrapper for RabbitMQ"""
     asyncio.run(async_callback(ch, method, properties, body, worker))
 
@@ -150,8 +183,21 @@ def main():
         
         channel = connection.channel()
         
-        # Declare queue
-        channel.queue_declare(queue='task_queue', durable=True)
+        # Declare main queue with dead letter exchange
+        channel.queue_declare(
+            queue='task_queue', 
+            durable=True,
+            arguments={
+                'x-dead-letter-exchange': '',
+                'x-dead-letter-routing-key': 'task_queue_dlq',
+                'x-message-ttl': 60000  # 60 seconds delay before retry
+            }
+        )
+        
+        # Declare dead letter queue for permanently failed messages
+        channel.queue_declare(queue='task_queue_dlq', durable=True)
+        
+        # Set up QoS
         channel.basic_qos(prefetch_count=1)
         
         # Set up consumer with async callback

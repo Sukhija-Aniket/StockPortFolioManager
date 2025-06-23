@@ -45,7 +45,7 @@ class TradingOrchestrator:
         
         logger.info(f"TradingOrchestrator initialized with shared executor")
     
-    async def process_spreadsheet(self, spreadsheet_task: SpreadsheetTask, max_retries: int = 3) -> bool:
+    async def process_spreadsheet(self, spreadsheet_task: SpreadsheetTask, max_retries: int = 0) -> bool:
         """
         Process a single spreadsheet asynchronously using threading
         
@@ -73,8 +73,12 @@ class TradingOrchestrator:
                     logger.info(f"Completed processing for {spreadsheet_task.spreadsheet_id}: {result}")
                     return True
                 elif attempt < max_retries:
-                    if execution_record_id is None:
+                    # Only set execution_record_id if we have a valid record
+                    if execution_record_id is None and execution_record and hasattr(execution_record, 'id'):
                         execution_record_id = execution_record.id
+                    elif execution_record_id is None:
+                        logger.warning(f"No valid execution record ID for retry on {spreadsheet_task.spreadsheet_id}")
+                        return False
                     
                     delay = 2 ** attempt  # Exponential backoff
                     logger.warning(f"Attempt {attempt + 1} failed, retrying record {execution_record_id} in {delay}s...")
@@ -123,25 +127,35 @@ class TradingOrchestrator:
                 logger.info(f"Processing spreadsheet {spreadsheet_task.spreadsheet_id}")
                 
                 # Create execution record
-                execution_record = self.execution_record_service.create_execution_record(spreadsheet_task.spreadsheet_id, start_time)
+                try:
+                    execution_record = self.execution_record_service.create_execution_record(spreadsheet_task.spreadsheet_id, start_time)
+                    if execution_record is None:
+                        logger.error(f"Failed to create execution record for {spreadsheet_task.spreadsheet_id}")
+                        return False, None
+                except Exception as e:
+                    logger.error(f"Exception creating execution record for {spreadsheet_task.spreadsheet_id}: {e}")
+                    return False, None
             
             # Get spreadsheet data first
             spreadsheet, sheet_names, raw_data = self._get_spreadsheet_data(spreadsheet_task)
             
             # Update execution record with data hash
-            self.execution_record_service.update_execution_record_data_hash(execution_record, raw_data)
+            if execution_record:
+                self.execution_record_service.update_execution_record_data_hash(execution_record, raw_data)
             
             if raw_data.empty:
                 logger.warning(f"No data found in spreadsheet {spreadsheet_task.spreadsheet_id}")
-                execution_record.mark_failed("No data found in spreadsheet")
-                self.execution_record_service.save_execution_record(execution_record)
+                if execution_record:
+                    execution_record.mark_failed("No data found in spreadsheet")
+                    self.execution_record_service.save_execution_record(execution_record)
                 return False, execution_record
             
             # Check if data has changed
             if not self.execution_record_service.data_has_changed(spreadsheet_task.spreadsheet_id, raw_data):
                 logger.info(f"Data unchanged for {spreadsheet_task.spreadsheet_id}, skipping processing")
-                execution_record.mark_completed(0, 0)
-                self.execution_record_service.save_execution_record(execution_record)
+                if execution_record:
+                    execution_record.mark_completed(0, 0)
+                    self.execution_record_service.save_execution_record(execution_record)
                 return True, execution_record
             
             # Process data in parallel
@@ -156,8 +170,9 @@ class TradingOrchestrator:
             total_rows = sum(len(df) for df in results.values() if isinstance(df, pd.DataFrame))
             
             # Mark execution as completed
-            execution_record.mark_completed(processing_duration, total_rows)
-            self.execution_record_service.save_execution_record(execution_record)
+            if execution_record:
+                execution_record.mark_completed(processing_duration, total_rows)
+                self.execution_record_service.save_execution_record(execution_record)
             
             logger.info(f"Successfully processed spreadsheet {spreadsheet_task.spreadsheet_id}")
             return True, execution_record
@@ -165,8 +180,11 @@ class TradingOrchestrator:
         except Exception as e:
             logger.error(f"Error processing spreadsheet {spreadsheet_task.spreadsheet_id}: {e}")
             if execution_record:
-                execution_record.mark_failed(str(e))
-                self.execution_record_service.save_execution_record(execution_record)
+                try:
+                    execution_record.mark_failed(str(e))
+                    self.execution_record_service.save_execution_record(execution_record)
+                except Exception as save_error:
+                    logger.error(f"Failed to save failed execution record: {save_error}")
             return False, execution_record
     
     def _get_spreadsheet_data(self, spreadsheet_task: SpreadsheetTask) -> Tuple:
