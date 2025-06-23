@@ -5,3 +5,5 @@ secrets/.env
 secrets/tradingprojects-apiKey.json
 secrets/credentials.json
 app.log
+
+*.log
