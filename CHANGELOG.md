@@ -1,3 +1,27 @@
+# v0.0.3 (Wed Jun 25 2025)
+
+#### ⚠️ Pushed to `upgrade`
+
+- Remove .DS_Store from Git tracking (aniket_sukhija@intuit.com)
+- Add macOS system files to .gitignore and remove existing .DS_Store files (aniket_sukhija@intuit.com)
+- Remove secret from history and clean up working directory (aniket_sukhija@intuit.com)
+- feat: everything working (aniket_sukhija@intuit.com)
+- feat: update .gitignore (aniket_sukhija@intuit.com)
+- feat: add functionality working, and logs added (aniket_sukhija@intuit.com)
+- feat: may remove later (aniket_sukhija@intuit.com)
+- feat: add data works successfully ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- feat: behind ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- feat: inbetween ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- feat: halfway there ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- bugfix and correct open, close date ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+#### Authors: 2
+
+- asukhija (aniket_sukhija@intuit.com)
+- Sukhija-Aniket ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+---
+
 # v0.0.2 (Sat Oct 05 2024)
 
 #### ⚠️ Pushed to `mqueue`
