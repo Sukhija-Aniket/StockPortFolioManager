@@ -3,10 +3,11 @@ name: Auto Release
 on:
   push:
     branches:
-      - main
-      - mqueue
-      - upgrade
       - release
+  pull_request:
+    branches:
+      - release
+    types: [closed]
   workflow_dispatch:
     inputs:
       branch:
@@ -15,14 +16,12 @@ on:
         default: 'release'
         type: choice
         options:
-          - main
-          - mqueue
-          - upgrade
           - release
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,7 +57,7 @@ jobs:
             "repo": "StockPortfolioManager",
             "name": "github-actions[bot]",
             "email": "github-actions[bot]@users.noreply.github.com",
-            "baseBranch": "${{ github.event.inputs.branch || github.ref_name }}",
+            "baseBranch": "release",
             "onlyPublishWithReleaseLabel": false,
             "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           }
