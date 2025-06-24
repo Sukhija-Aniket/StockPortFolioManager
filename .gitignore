@@ -36,6 +36,15 @@ venv.bak/
 *.swo
 *~
 
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # Logs
 backend/app.log
 worker/app.log
