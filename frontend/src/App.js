@@ -15,7 +15,7 @@ const App = () => {
   const fetchSpreadsheets = async () => {
     // Fetch existing spreadsheets
     try {
-      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets`, { withCredentials: true });
+      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/`, { withCredentials: true });
       console.log("Spreadsheets: ", res)
       setSpreadsheets(res.data);
     } catch (error) {
@@ -27,7 +27,7 @@ const App = () => {
     // Fetch user data if logged in
     const fetchUserData = async () => {
       try {
-        const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/user_data`, { withCredentials: true });
+        const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/user`, { withCredentials: true });
         console.log("Response: ", res.data);
         setUser(res.data);
         fetchSpreadsheets();
@@ -45,9 +45,9 @@ const App = () => {
 
   const handleSyncData = async () => {
     try {
-      const formData = new FormData()
-      formData.append('spreadsheets', spreadsheets);
-      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/sync_data`, {'spreadsheets': JSON.stringify(spreadsheets) }, {
+      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/sync`, {
+        'spreadsheets': spreadsheets
+      }, {
         withCredentials: true,
         headers: {
           'Content-Type': 'application/json'
@@ -63,7 +63,7 @@ const App = () => {
   const handleCreateSpreadsheet = async () => {
     // Create new spreadsheet
     try {
-      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/create_spreadsheet`, {
+      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/`, {
         title: newSpreadsheetTitle
       }, { withCredentials: true });
       console.log('Created spreadsheet:', res.data);
@@ -81,9 +81,16 @@ const App = () => {
   const handleDeleteClick = async (spreadsheet_url) => {
     try {
       console.log("Deleting a spreadsheet with spreadsheetId:", spreadsheet_url);
-      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/remove_spreadsheet`, { 
-        'spreadsheet_url': spreadsheet_url
-      }, { withCredentials: true });
+      // Extract spreadsheet ID from URL
+      const spreadsheet_id = spreadsheet_url.split('/d/')[1]?.split('/')[0];
+      if (!spreadsheet_id) {
+        console.error('Invalid spreadsheet URL');
+        return;
+      }
+      
+      const res = await axios.delete(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/${spreadsheet_id}`, { 
+        withCredentials: true 
+      });
       console.log('Spreadsheet deleted successfully:', res.data);
         // Optionally, refresh the table or remove the deleted spreadsheet from the state
       fetchSpreadsheets();
@@ -93,26 +100,43 @@ const App = () => {
   };
 
   const deleteAllCookies = () => {
-    document.cookie.split(';').forEach((c) => {
-      document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/');
+    const cookies = document.cookie.split(';');
+    
+    cookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      
+      // Delete cookie with root path only - this will clear it for all sub-paths
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
     });
   };
   
   const handleSignOut = async () => {
     try {
-      localStorage.removeItem('user_id');
-      localStorage.removeItem('access_token');
-      sessionStorage.removeItem('user_id');
-      sessionStorage.removeItem('access_token');
-      deleteAllCookies();
+      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/logout`, { withCredentials: true });
+      console.log("Clearing local storage and session storage");
+      localStorage.clear();
+      sessionStorage.clear();
+      // Force clear the session cookie
+      // document.cookie = 'session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
-      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/logout`);
-      setUser(null); // Clear user state
+      setUser(null);
       setSpreadsheets([]);
-      deleteAllCookies();
+      window.location.reload();
       
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleDebugSession = async () => {
+    try {
+      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/debug-session`, { 
+        withCredentials: true 
+      });
+      console.log('Debug session response:', res.data);
+    } catch (error) {
+      console.error('Error debugging session:', error);
     }
   };
 
@@ -125,6 +149,9 @@ const App = () => {
       {user && (
         <div className="text-center py-3">
           <div className="d-flex justify-content-end mb-3">
+            <Button variant="outline-info" onClick={handleDebugSession} className="me-2">
+              Debug Session
+            </Button>
             <Button variant="outline-secondary" onClick={handleSignOut}>
               Sign Out
             </Button>
@@ -201,7 +228,7 @@ const App = () => {
 
       {!user && (
         <div className="text-center py-3">
-          <Button variant="primary" size='lg' href={`http://${REACT_APP_BACKEND_SERVICE}/authorize`}>
+          <Button variant="primary" size='lg' href={`http://${REACT_APP_BACKEND_SERVICE}/auth/authorize`}>
             Login with Google
           </Button>
         </div>

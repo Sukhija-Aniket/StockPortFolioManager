@@ -57,21 +57,21 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
   };
   
 
-  const handleUploadData = async () => {
-    console.log("handling upload data")
+  const handleAddData = async () => {
+    console.log("handling add data")
     if (files && uploadTitle) {
       console.log('Uploading files...');
 
       const formData = new FormData();
       [...files].forEach((file) => {
-        formData.append('files', file);
+        formData.append('file', file);
       });
+      formData.append('spreadsheet_url', spreadsheeturl);
       formData.append('title', uploadTitle);
-      formData.append('spreadsheeturl', spreadsheeturl)
-      console.log("okay going great: " + formData.getAll('files').toString());
+      formData.append('spreadsheet_type', 'sheets');
+      console.log("okay going great: " + formData.getAll('file').toString());
       try {
-        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/add_data`, formData, {
-        // const res = await axios.post(`http://backend:5002/add_data`, formData, {
+        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/add`, formData, {
           withCredentials: true,
           headers: {
             'Content-Type':'multipart/form-data'
@@ -136,8 +136,8 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
             />
           </Col>
           <Col xs="auto">
-            <Button variant="success" disabled={isDisabled} onClick={handleUploadData}>
-              Upload Data
+            <Button variant="success" disabled={isDisabled} onClick={handleAddData}>
+              Add Data
             </Button>
           </Col>
         </Row>

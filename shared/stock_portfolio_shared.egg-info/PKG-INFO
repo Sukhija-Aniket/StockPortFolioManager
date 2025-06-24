@@ -1,0 +1,64 @@
+Metadata-Version: 2.1
+Name: stock-portfolio-shared
+Version: 0.1.0
+Summary: Shared utilities for Stock Portfolio Manager
+Author: Stock Portfolio Manager
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=1.3.0
+Requires-Dist: gspread==6.1.2
+Requires-Dist: google-auth>=1.12.0
+Requires-Dist: google-auth-oauthlib>=0.4.1
+Requires-Dist: openpyxl>=3.0.0
+Requires-Dist: numpy>=1.20.0
+Requires-Dist: requests>=2.25.0
+Requires-Dist: python-dotenv>=0.19.0
+Requires-Dist: yfinance>=0.1.70
+Requires-Dist: pytz>=2021.1
+Requires-Dist: urllib3<2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: pytest-cov>=2.0; extra == "dev"
+Requires-Dist: black>=21.0; extra == "dev"
+Requires-Dist: flake8>=3.8; extra == "dev"
+
+# Stock Portfolio Shared Library
+
+Shared utilities and constants for the Stock Portfolio Manager application.
+
+## Installation
+
+For development, install in editable mode:
+
+```bash
+pip install -e .
+```
+
+## Usage
+
+```python
+from stock_portfolio_shared.constants import *
+from stock_portfolio_shared.utils.sheets import SheetsManager
+from stock_portfolio_shared.utils.excel import ExcelManager
+from stock_portfolio_shared.utils.data_processing import DataProcessor
+```
+
+## Structure
+
+- `constants/` - Shared constants and configuration
+- `utils/` - Utility functions for sheets, excel, and data processing
+- `models/` - Data models and structures
+
+## Development
+
+This package is shared between the backend and scripts services to avoid code duplication. 
