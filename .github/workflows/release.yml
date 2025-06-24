@@ -1,0 +1,71 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+      - mqueue
+      - upgrade
+      - release
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to release from'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - main
+          - mqueue
+          - upgrade
+          - release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install auto
+        run: npm install -g auto
+
+      - name: Install git-tag plugin
+        run: npm install -g @auto-it/git-tag
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create .autorc
+        run: |
+          cat > .autorc << EOF
+          {
+            "plugins": [
+              "git-tag"
+            ],
+            "owner": "Sukhija-Aniket",
+            "repo": "StockPortfolioManager",
+            "name": "github-actions[bot]",
+            "email": "github-actions[bot]@users.noreply.github.com",
+            "baseBranch": "${{ github.event.inputs.branch || github.ref_name }}",
+            "onlyPublishWithReleaseLabel": false,
+            "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          }
+          EOF
+
+      - name: Run auto shipit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: auto shipit 

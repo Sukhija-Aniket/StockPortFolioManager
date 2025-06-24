@@ -1,0 +1,101 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'Source branch to release from'
+        required: true
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - mqueue
+          - upgrade
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release_notes:
+        description: 'Custom release notes (optional)'
+        required: false
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install auto
+        run: npm install -g auto
+
+      - name: Install git-tag plugin
+        run: npm install -g @auto-it/git-tag
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Switch to release branch
+        run: |
+          git checkout -b release
+          git reset --hard origin/${{ github.event.inputs.source_branch }}
+          git push origin release --force
+
+      - name: Create .autorc
+        run: |
+          cat > .autorc << EOF
+          {
+            "plugins": [
+              "git-tag"
+            ],
+            "owner": "Sukhija-Aniket",
+            "repo": "StockPortfolioManager",
+            "name": "github-actions[bot]",
+            "email": "github-actions[bot]@users.noreply.github.com",
+            "baseBranch": "release",
+            "onlyPublishWithReleaseLabel": false,
+            "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          }
+          EOF
+
+      - name: Commit .autorc
+        run: |
+          git add .autorc
+          git commit -m "Add .autorc for release" || true
+          git push origin release
+
+      - name: Run auto shipit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: auto shipit
+
+      - name: Create GitHub Release
+        if: github.event.inputs.release_notes != ''
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.auto.outputs.new_release }}
+          release_name: Release ${{ steps.auto.outputs.new_release }}
+          body: ${{ github.event.inputs.release_notes }}
+          draft: false
+          prerelease: false 
