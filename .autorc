@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    "git-tag"
+  ],
+  "owner": "Sukhija-Aniket",
+  "repo": "StockPortfolioManager",
+  "name": "Sukhija-Aniket",
+  "email": "b20081.aniket@gmail.com",
+  "baseBranch": "release",
+  "onlyPublishWithReleaseLabel": false,
+  "author": "Sukhija-Aniket <b20081.aniket@gmail.com>"
+} 
