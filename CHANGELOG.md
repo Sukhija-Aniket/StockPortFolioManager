@@ -1,3 +1,17 @@
+# v0.0.7 (Wed Jun 25 2025)
+
+#### 🐛 Bug Fix
+
+- feat: should not work [#3](https://github.com/Sukhija-Aniket/StockPortFolioManager/pull/3) (aniket_sukhija@intuit.com [@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- feat: v2 [#2](https://github.com/Sukhija-Aniket/StockPortFolioManager/pull/2) (aniket_sukhija@intuit.com [@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+#### Authors: 2
+
+- asukhija (aniket_sukhija@intuit.com)
+- Sukhija-Aniket ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+---
+
 # v0.0.6 (Wed Jun 25 2025)
 
 #### ⚠️ Pushed to `release`
