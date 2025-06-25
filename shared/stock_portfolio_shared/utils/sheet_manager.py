@@ -9,6 +9,7 @@ import numpy as np
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import AuthorizedSession
 from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+
 from .base_manager import BaseManager
 from ..constants.general_constants import BUY, CELL_RANGE
 from ..constants.trans_details_constants import TransDetails_constants
@@ -82,22 +83,7 @@ class SheetsManager(BaseManager):
         self.format_background_sheets(spreadsheet, sheet, CELL_RANGE)    
         return sheet
     
-    def clean_data_for_json(self, data):
-        """Clean DataFrame to ensure JSON compatibility"""
-        import numpy as np
-        
-        # Replace infinite values
-        data = data.replace([np.inf, -np.inf], [None, None])
-        
-        # Replace NaN values
-        data = data.fillna(None)
-        
-        # Round very large numbers to prevent JSON issues
-        numeric_cols = data.select_dtypes(include=[np.number]).columns
-        for col in numeric_cols:
-            data[col] = data[col].apply(lambda x: round(x, 4) if isinstance(x, (int, float)) and abs(x) < 1e15 else None)
-        
-        return data
+   
     
     def display_and_format_sheets(self, sheet, data):
         """Display and format data in Google Sheets"""
@@ -105,14 +91,13 @@ class SheetsManager(BaseManager):
         
         try:
             logger.debug(f"Data before cleaning: {data}")
-            data = self.clean_data_for_json(data) # lets see what happens here
             logger.debug(f"Data after cleaning: {data}")
             # Convert numeric columns
             numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
             data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Keep using to_numeric here instead of DataProcessor.safe_numeric
             data[numeric_cols] = data[numeric_cols].round(4)
             
-            
+            logger.debug(f"Data after numeric conversion: {data}")
             headers = data.columns.tolist() 
             data_values = data.values.tolist() 
 
@@ -123,7 +108,7 @@ class SheetsManager(BaseManager):
             
             # Prepare batch formatting requests
             formatting_requests = []
-            
+            logger.debug(f"Headers: {headers}")
             # Add formatting to headers
             num_columns = len(headers)
             if num_columns > 0:
@@ -148,7 +133,7 @@ class SheetsManager(BaseManager):
                     }
                 }
                 formatting_requests.append(header_format_request)
-                
+                logger.debug(f"Formatting requests: {formatting_requests}")
                 # Format numeric columns with proper number format
                 if numeric_cols:
                     for col_name in numeric_cols:
@@ -178,6 +163,7 @@ class SheetsManager(BaseManager):
                             }
                             formatting_requests.append(number_format_request)
             
+            logger.debug(f"Formatting requests: {formatting_requests}")
             # Execute all formatting requests in one batch
             if formatting_requests:
                 try:
@@ -242,6 +228,16 @@ class SheetsManager(BaseManager):
             raise RuntimeError(f"Authorization Failed for spreadsheets: {e}")
     
     def _get_backgroundColor_formatting_request(self,sheet, row_number, row_data, background_color):
+        # Ensure color values are properly formatted as floats between 0 and 1
+        red = float(background_color[0])
+        green = float(background_color[1])
+        blue = float(background_color[2])
+        
+        # Validate color values
+        if not (0 <= red <= 1 and 0 <= green <= 1 and 0 <= blue <= 1):
+            logger.warning(f"Invalid color values: red={red}, green={green}, blue={blue}")
+            return None
+        
         format_request = {
             "repeatCell": {
                 "range": {
@@ -254,13 +250,13 @@ class SheetsManager(BaseManager):
                 "cell": {
                     "userEnteredFormat": {
                         "backgroundColor": {
-                            "red": background_color[0],
-                            "green": background_color[1],
-                            "blue": background_color[2]
+                            "red": red,
+                            "green": green,
+                            "blue": blue
                         }
                     }
                 },
-                "fields": "userEnteredFormat.backgroundColor"
+                "fields": "userEnteredFormat.backgroundColor",
             }
         }
         return format_request
@@ -295,9 +291,14 @@ class SheetsManager(BaseManager):
             # Convert row back to list for formatting
             row_data = row.tolist()
             format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
-            requests.append(format_request)
+            if format_request is not None:
+                requests.append(format_request)
         if len(requests) > 0:
-            spreadsheet.batch_update({"requests": requests})
+            try:
+                spreadsheet.batch_update({"requests": requests})
+                logger.info(f"Applied {len(requests)} formatting requests to {sheet.title}")
+            except Exception as e:
+                logger.error(f"Failed to apply formatting to {sheet.title}: {e}")
     
     def shareProfitLoss_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
@@ -331,9 +332,14 @@ class SheetsManager(BaseManager):
                 # Convert row back to list for formatting
                 row_data = row.tolist()
                 format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
-                requests.append(format_request)
+                if format_request is not None:
+                    requests.append(format_request)
         if len(requests) > 0:
-            spreadsheet.batch_update({"requests": requests})
+            try:
+                spreadsheet.batch_update({"requests": requests})
+                logger.info(f"Applied {len(requests)} formatting requests to {sheet.title}")
+            except Exception as e:
+                logger.error(f"Failed to apply formatting to {sheet.title}: {e}")
     
     def dailyProfitLoss_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
@@ -368,12 +374,17 @@ class SheetsManager(BaseManager):
                     # Convert row back to list for formatting
                     row_data = row.tolist()
                     format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
-                    requests.append(format_request)
+                    if format_request is not None:
+                        requests.append(format_request)
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid daily spendings value: {daily_spendings}")
                     continue
         if len(requests) > 0:
-            spreadsheet.batch_update({"requests": requests})
+            try:
+                spreadsheet.batch_update({"requests": requests})
+                logger.info(f"Applied {len(requests)} formatting requests to {sheet.title}")
+            except Exception as e:
+                logger.error(f"Failed to apply formatting to {sheet.title}: {e}")
     
     def taxation_formatting(self, spreadsheet, sheet):
         worksheet_data = sheet.get_all_values()
@@ -409,9 +420,14 @@ class SheetsManager(BaseManager):
             # Convert row back to list for formatting
             row_data = row.tolist()
             format_request = self._get_backgroundColor_formatting_request(sheet, row_number + 2, row_data, background_color)
-            requests.append(format_request)
+            if format_request is not None:
+                requests.append(format_request)
         if len(requests) > 0:
-            spreadsheet.batch_update({"requests": requests})
+            try:
+                spreadsheet.batch_update({"requests": requests})
+                logger.info(f"Applied {len(requests)} formatting requests to {sheet.title}")
+            except Exception as e:
+                logger.error(f"Failed to apply formatting to {sheet.title}: {e}")
     
     def get_formatting_funcs(self, sheet_names):
         """Get formatting functions"""
