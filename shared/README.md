@@ -1,30 +1,68 @@
 # Stock Portfolio Shared Library
 
-Shared utilities and constants for the Stock Portfolio Manager application.
+A shared Python library containing common utilities, models, and constants used across the Stock Portfolio Manager components.
 
 ## Installation
 
-For development, install in editable mode:
-
+### For Development (Editable Install)
 ```bash
+# From the shared directory
 pip install -e .
+
+# Or from the root directory
+pip install -e ./shared
+```
+
+### For Production (Regular Install)
+```bash
+# From the shared directory
+pip install .
+
+# Or from the root directory
+pip install ./shared
+```
+
+### From Git Repository
+```bash
+pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git#subdirectory=shared
 ```
 
 ## Usage
 
 ```python
-from stock_portfolio_shared.constants import *
-from stock_portfolio_shared.utils.sheets import SheetsManager
-from stock_portfolio_shared.utils.excel import ExcelManager
-from stock_portfolio_shared.utils.data_processing import DataProcessor
+from stock_portfolio_shared.models import StockData
+from stock_portfolio_shared.utils import data_utils
+from stock_portfolio_shared.constants import API_ENDPOINTS
+
+# Use shared functionality
+stock_data = StockData(symbol="AAPL")
 ```
+
+## Development
+
+### Building the Package
+```bash
+cd shared
+python setup.py sdist bdist_wheel
+```
+
+### Publishing to PyPI (if needed)
+```bash
+pip install twine
+twine upload dist/*
+```
+
+## Version Management
+
+This package follows semantic versioning. When making changes:
+1. Update the version in `setup.py`
+2. Update the version in dependent components' requirements.txt
+3. Tag the release in git
 
 ## Structure
 
 - `constants/` - Shared constants and configuration
 - `utils/` - Utility functions for sheets, excel, and data processing
 - `models/` - Data models and structures
-
-## Development
 
 This package is shared between the backend and scripts services to avoid code duplication. 
