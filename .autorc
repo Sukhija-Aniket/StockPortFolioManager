@@ -8,27 +8,5 @@
   "email": "github-actions[bot]@users.noreply.github.com",
   "baseBranch": "release",
   "onlyPublishWithReleaseLabel": false,
-  "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
-  "labels": [
-    {
-      "name": "Version: Major",
-      "type": "major"
-    },
-    {
-      "name": "Version: Minor",
-      "type": "minor"
-    },
-    {
-      "name": "Version: Patch",
-      "type": "patch"
-    },
-    {
-      "name": "Version: Internal",
-      "type": "internal"
-    },
-    {
-      "name": "Version: Documentation",
-      "type": "documentation"
-    }
-  ]
+  "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
 }
