@@ -47,6 +47,13 @@ jobs:
 
       - name: Create .autorc
         run: |
+          # Check if .autorc exists and backup if needed
+          if [ -f ".autorc" ]; then
+            echo "Backing up existing .autorc file..."
+            cp .autorc .autorc.backup
+          fi
+          
+          # Create new .autorc for release
           cat > .autorc << EOF
           {
             "plugins": [
@@ -61,6 +68,22 @@ jobs:
             "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           }
           EOF
+
+      - name: Commit .autorc
+        run: |
+          git add .autorc
+          git commit -m "Update .autorc for release" || true
+          git push origin release
+
+      - name: Ensure clean working directory
+        run: |
+          git status
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Working directory is not clean. Committing remaining changes..."
+            git add .
+            git commit -m "Auto-commit remaining changes before release" || true
+            git push origin release
+          fi
 
       - name: Run auto shipit
         env:
