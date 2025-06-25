@@ -159,4 +159,31 @@ def convert_dtypes(df):
         return df
     except Exception as e:
         logger.error(f"Error converting data types: {e}")
-        return df 
+        return df
+
+def get_financial_year(date):
+    """
+    Get financial year for a given date
+    FY starts from 1st April and ends on 31st March next year
+    Example: FY 2021-22 means 1st April 2021 to 31st March 2022
+    """
+    try:
+        if isinstance(date, str):
+            date = pd.to_datetime(date)
+        
+        year = date.year
+        month = date.month
+        
+        # If month is April to December, it's FY year-year+1
+        # If month is January to March, it's FY year-1-year
+        if month >= 4:  # April to December
+            fy_start = year
+            fy_end = year + 1
+        else:  # January to March
+            fy_start = year - 1
+            fy_end = year
+            
+        return f"FY {fy_start}-{str(fy_end)[-2:]}"  # FY 2021-22 format
+    except Exception as e:
+        logger.error(f"Error getting financial year for date {date}: {e}")
+        return "FY Unknown"

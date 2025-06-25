@@ -1,0 +1,80 @@
+name: Code Validation
+
+on:
+  pull_request:
+    branches:
+      - release
+  push:
+    branches:
+      - release
+
+jobs:
+  validate-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Validate Python syntax
+        run: |
+          echo "🔍 Checking Python syntax..."
+          python -m py_compile backend/app.py
+          python -m py_compile worker/worker.py
+          echo "✅ Python syntax validation passed!"
+
+      - name: Check for basic code quality
+        run: |
+          echo "🔍 Running basic code quality checks..."
+          # Check for common issues
+          if grep -r "TODO" backend/ worker/ --include="*.py"; then
+            echo "⚠️  Found TODO comments - consider addressing them"
+          else
+            echo "✅ No TODO comments found"
+          fi
+          
+          if grep -r "FIXME" backend/ worker/ --include="*.py"; then
+            echo "⚠️  Found FIXME comments - consider addressing them"
+          else
+            echo "✅ No FIXME comments found"
+          fi
+          
+          echo "✅ Basic code quality check completed!"
+
+      - name: Validate file structure
+        run: |
+          echo "🔍 Validating file structure..."
+          
+          # Check if essential files exist
+          required_files=(
+            "backend/app.py"
+            "worker/worker.py"
+            "shared/setup.py"
+            "docker-compose.yaml"
+            ".autorc"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✅ Found required file: $file"
+            else
+              echo "❌ Missing required file: $file"
+              exit 1
+            fi
+          done
+          
+          echo "✅ File structure validation passed!"
+
+      - name: Final validation
+        run: |
+          echo "🎯 All validations completed successfully!"
+          echo "✅ Code validation check passed!" 

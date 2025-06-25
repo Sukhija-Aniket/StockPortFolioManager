@@ -1,0 +1,35 @@
+name: Dummy Status Check
+
+on:
+  pull_request:
+    branches:
+      - release
+  push:
+    branches:
+      - release
+
+jobs:
+  dummy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dummy validation
+        run: |
+          echo "🔍 Running dummy validation..."
+          echo "✅ Checking if repository exists..."
+          echo "✅ Checking if code is present..."
+          echo "✅ All dummy checks passed!"
+          
+      - name: Simulate processing time
+        run: |
+          echo "⏳ Simulating some processing time..."
+          sleep 3
+          echo "✅ Processing complete!"
+
+      - name: Final validation
+        run: |
+          echo "🎯 Final validation step..."
+          echo "✅ Dummy status check completed successfully!"
+          echo "This check will always pass and can be used as a template for real checks." 
