@@ -1,3 +1,23 @@
+# v0.0.6 (Wed Jun 25 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: fix release (aniket_sukhija@intuit.com)
+- feat: improve auto removing labels (aniket_sukhija@intuit.com)
+- feat: another test (aniket_sukhija@intuit.com)
+- feat: test again (aniket_sukhija@intuit.com)
+- feat: will this release (aniket_sukhija@intuit.com)
+- feat: release it (aniket_sukhija@intuit.com)
+- feat: ready for release (aniket_sukhija@intuit.com)
+- Update release workflow to only trigger on release branch pushes and merges (aniket_sukhija@intuit.com)
+- Add GitHub Actions workflows for automated releases (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.1 (Wed Jun 25 2025)
 
 #### ⚠️ Pushed to `upgrade`
