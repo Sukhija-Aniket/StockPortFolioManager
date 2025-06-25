@@ -30,12 +30,12 @@ pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git#subd
 ## Usage
 
 ```python
-from stock_portfolio_shared.models import StockData
-from stock_portfolio_shared.utils import data_utils
-from stock_portfolio_shared.constants import API_ENDPOINTS
+from stock_portfolio_shared.models import SpreadsheetTask
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.constants.general_constants import BUY, SELL
 
 # Use shared functionality
-stock_data = StockData(symbol="AAPL")
+sheets_manager = SheetsManager()
 ```
 
 ## Development

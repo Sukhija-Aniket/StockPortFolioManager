@@ -21,21 +21,20 @@ pip install stock-portfolio-shared==0.1.0
 
 ### 1. Importing Constants
 ```python
-from stock_portfolio_shared.constants import (
-    BUY, SELL, DATE_FORMAT, 
-    Raw_constants, Data_constants,
-    TransDetails_constants
-)
+from stock_portfolio_shared.constants.general_constants import BUY, SELL, DATA_TIME_FORMAT
+from stock_portfolio_shared.constants.raw_constants import Raw_constants
+from stock_portfolio_shared.constants.data_constants import Data_constants
+from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants
 
 # Use constants
 print(f"Buy type: {BUY}")
-print(f"Date format: {DATE_FORMAT}")
+print(f"Date format: {DATA_TIME_FORMAT}")
 print(f"Date column: {Raw_constants.DATE}")
 ```
 
 ### 2. Using Sheets Manager
 ```python
-from stock_portfolio_shared.utils.sheets import SheetsManager
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 
 # Initialize sheets manager
 sheets_manager = SheetsManager(credentials_file="path/to/credentials.json")
@@ -55,7 +54,7 @@ sheets_manager.update_sheet(spreadsheet, "Sheet1", your_data)
 
 ### 3. Using Excel Manager
 ```python
-from stock_portfolio_shared.utils.excel import ExcelManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
 
 # Initialize excel manager
 excel_manager = ExcelManager()
@@ -72,7 +71,7 @@ excel_manager.update_excel(workbook, "Sheet1", your_data)
 
 ### 4. Using Data Processor
 ```python
-from stock_portfolio_shared.utils.data_processing import DataProcessor
+from stock_portfolio_shared.utils.data_processor import DataProcessor
 
 # Process data
 formatted_data = DataProcessor.format_add_data(input_data)
@@ -106,7 +105,7 @@ input_file, typ, credentials = CommonUtils.get_args_and_input(
 **Before:**
 ```python
 from utils import authenticate_and_get_sheets, read_data_from_sheets
-from constants import BUY, SELL
+from stock_portfolio_shared.constants.general_constants import BUY, SELL
 
 spreadsheet = authenticate_and_get_sheets(credentials_file, spreadsheet_id)
 data = read_data_from_sheets(spreadsheet, sheet_name)
@@ -114,8 +113,8 @@ data = read_data_from_sheets(spreadsheet, sheet_name)
 
 **After:**
 ```python
-from stock_portfolio_shared.utils.sheets import SheetsManager
-from stock_portfolio_shared.constants import BUY, SELL
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.constants.general_constants import BUY, SELL
 
 sheets_manager = SheetsManager(credentials_file)
 spreadsheet = sheets_manager.authenticate_and_get_sheets(spreadsheet_id)
@@ -126,7 +125,7 @@ data = sheets_manager.read_data_from_sheets(spreadsheet, sheet_name)
 **Before:**
 ```python
 from utils import update_env_file, get_args_and_input
-from constants import DATE_FORMAT
+from stock_portfolio_shared.constants.general_constants import DATA_TIME_FORMAT
 
 update_env_file(key, value, env_file)
 input_file, typ, credentials = get_args_and_input(args, excel_file_name, spreadsheet_id, env_file)
@@ -135,7 +134,7 @@ input_file, typ, credentials = get_args_and_input(args, excel_file_name, spreads
 **After:**
 ```python
 from stock_portfolio_shared.utils.common import CommonUtils
-from stock_portfolio_shared.constants import DATE_FORMAT
+from stock_portfolio_shared.constants.general_constants import DATA_TIME_FORMAT
 
 CommonUtils.update_env_file(key, value, env_file)
 input_file, typ, credentials = CommonUtils.get_args_and_input(args, excel_file_name, spreadsheet_id, env_file)
@@ -181,7 +180,7 @@ input_file, typ, credentials = CommonUtils.get_args_and_input(args, excel_file_n
 
 ### Basic Constants
 - `BUY`, `SELL`
-- `DATE_FORMAT`, `YFINANCE_DATE_FORMAT`, `ORDER_TIME_FORMAT`, `DATA_TIME_FORMAT`
+- `DATA_TIME_FORMAT`, `YFINANCE_DATE_FORMAT`, `ORDER_TIME_FORMAT`
 - `BSE`, `NSE`
 - `CELL_RANGE`
 
@@ -211,7 +210,7 @@ input_file, typ, credentials = CommonUtils.get_args_and_input(args, excel_file_n
 4. Update this guide
 
 ### Updating Constants
-1. Modify the constants in `constants/__init__.py`
+1. Modify the constants in the appropriate constants file
 2. Test that all services still work
 3. Update this guide if needed
 
