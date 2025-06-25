@@ -14,7 +14,8 @@ from stock_portfolio_shared.utils.data_processor import DataProcessor
 from utils.calculation_utils import (
     calculate_stt, calculate_transaction_charges, calculate_brokerage,
     calculate_stamp_duty, calculate_dp_charges, calculate_average_cost_of_sold_shares,
-    is_long_term, update_intraday_count, convert_dtypes, update_transaction_type
+    is_long_term, update_intraday_count, convert_dtypes, update_transaction_type,
+    get_financial_year
 )
 
 from utils.logging_config import setup_logging
@@ -355,10 +356,10 @@ class DataProcessingService:
     def get_taxation_row(self):
         """Get default Taxation row"""
         return {
-            Taxation_constants.DATE: self.config.DEFAULT_DATE,
             Taxation_constants.LTCG: 0.0,
             Taxation_constants.STCG: 0.0,
-            Taxation_constants.INTRADAY_INCOME: 0.0
+            Taxation_constants.INTRADAY_INCOME: 0.0,
+            Taxation_constants.TOTAL_GAINS: 0.0
         }
 
     def process_taxation(self, data):
@@ -375,7 +376,7 @@ class DataProcessingService:
                 TransDetails_constants.DP_CHARGES, TransDetails_constants.STOCK_EXCHANGE, 
                 TransDetails_constants.INTRADAY_COUNT
             ]
-            data = self.initialize_data(data, extra_cols=extra_cols)
+            data = self.initialize_data(data, extra_cols=extra_cols, sort_list=[Raw_constants.DATE, Raw_constants.NAME, TransDetails_constants.TRANSACTION_TYPE])
             
             # Group by transaction type, name and date
             grouped_data = data.groupby([TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE])
@@ -395,11 +396,12 @@ class DataProcessingService:
             for (transaction_type, name, date), group in grouped_data:
                 if name not in infoMap:
                     infoMap[name] = {}
-                    rowData[name] = self.get_taxation_row()
+                    rowData[name] = {}
                     intraMap[name] = {}
                 if date not in infoMap[name]:
                     infoMap[name][date] = {}
-                    rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
+                    rowData[name][get_financial_year(date)] = self.get_taxation_row()
+                    # rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
                 if transaction_type not in infoMap[name][date]:
                     infoMap[name][date][transaction_type] = group
                     if transaction_type == BUY:
@@ -448,7 +450,7 @@ class DataProcessingService:
                             sellCnt = sellData[j][0]
                             if buyCnt > sellCnt:
                                 # used - (buy - sell)
-                                rowData[name][Taxation_constants.INTRADAY_INCOME] -= sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                                rowData[name][get_financial_year(date)][Taxation_constants.INTRADAY_INCOME] -= sellCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                                 intraMap[name][date] += sellCnt
                                 buyData[i][1] = (buyData[i][0] - sellCnt) * (buyData[i][1]/buyData[i][0])
                                 buyData[i][0] -= sellCnt
@@ -456,7 +458,7 @@ class DataProcessingService:
                                 sellData[j][0] = 0
                                 j += 1
                             elif sellCnt > buyCnt:
-                                rowData[name][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                                rowData[name][get_financial_year(date)][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                                 intraMap[name][date] += buyCnt
                                 sellData[j][1] = (sellData[j][0] - buyCnt) * (sellData[j][1]/sellData[j][0])
                                 sellData[j][0] -= buyCnt
@@ -464,7 +466,7 @@ class DataProcessingService:
                                 buyData[i][0] = 0
                                 i += 1
                             else:
-                                rowData[name][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
+                                rowData[name][get_financial_year(date)][Taxation_constants.INTRADAY_INCOME] -= buyCnt * (buyData[i][1]/buyCnt - sellData[j][1]/sellCnt)
                                 intraMap[name][date] += buyCnt
                                 sellData[j][1] = 0
                                 sellData[j][0] = 0
@@ -474,7 +476,7 @@ class DataProcessingService:
                                 j += 1
                         temp = intraMap[name][date]
                         intraMap[name][date] = [temp, temp]
-                    
+            
             # Writing algorithm to find the long term and short term capital gains
             for name in infoMap.keys():
                 # Firstly I am reducing the intraday things, 
@@ -514,10 +516,10 @@ class DataProcessingService:
                     # Assumption no details are zero initially
                     if is_long_term(buyDetails[0], sellDetails[0]):
                         # used - (buy - sell)
-                        rowData[name][Taxation_constants.LTCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+                        rowData[name][get_financial_year(sellDetails[0])][Taxation_constants.LTCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
                     else:
                         # used - (buy - sell)
-                        rowData[name][Taxation_constants.STCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
+                        rowData[name][get_financial_year(sellDetails[0])][Taxation_constants.STCG] -= (tempval * (buyDetails[2]/buyDetails[1]) - tempval * (sellDetails[2]/sellDetails[1]))
                     buyDetails[2] = (buyDetails[1] - tempval) * (buyDetails[2]/buyDetails[1])
                     buyDetails[1] -= tempval
                     global_buy_data[name][i] = buyDetails
@@ -528,16 +530,18 @@ class DataProcessingService:
                         i += 1
                     if sellDetails[1] == 0:
                         j += 1
-                
+            
             # Finally forming the answer
-            for name, details in rowData.items():
-                new_row = pd.Series({
-                    Taxation_constants.DATE: details[Taxation_constants.DATE],
-                    Taxation_constants.NAME: name,
-                    Taxation_constants.LTCG: details[Taxation_constants.LTCG],
-                    Taxation_constants.STCG: details[Taxation_constants.STCG],
-                    Taxation_constants.INTRADAY_INCOME: details[Taxation_constants.INTRADAY_INCOME],
-                })
+            for name, fy_details in rowData.items():
+                for fy, details in fy_details.items():
+                    new_row = pd.Series({
+                        Taxation_constants.NAME: name,
+                        Taxation_constants.FINANCIAL_YEAR: fy,
+                        Taxation_constants.LTCG: details[Taxation_constants.LTCG],
+                        Taxation_constants.STCG: details[Taxation_constants.STCG],
+                        Taxation_constants.INTRADAY_INCOME: details[Taxation_constants.INTRADAY_INCOME],
+                        Taxation_constants.TOTAL_GAINS: details[Taxation_constants.LTCG] + details[Taxation_constants.STCG] + details[Taxation_constants.INTRADAY_INCOME]
+                    })
                 df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
             return convert_dtypes(df) 
             

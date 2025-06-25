@@ -1,29 +1,32 @@
 # Use an official Python runtime as a parent image
-FROM python:3.8
+FROM python:3.8-slim
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy shared package first
-COPY shared /app/shared
+# Install system dependencies including git
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install shared package
-RUN pip install -e /app/shared
+# Copy the requirements file
+COPY requirements.txt .
 
-# Copy the requirements file into the container at /app
-COPY worker/requirements.txt .
+# Install shared package from git repository (more independent)
+RUN pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@release#subdirectory=shared
 
-# Install any dependencies specified in requirements.txt
+# Install other dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy worker contents to worker subdirectory
-COPY worker/ /app/worker/
+# Copy worker code
+COPY . /app/
 
 # Create logs directory and set permissions
-RUN mkdir -p /app/worker/logs && chmod 755 /app/worker/logs
+RUN mkdir -p /app/logs && chmod 755 /app/logs
 
-# Set working directory to worker
-WORKDIR /app/worker
+# Set working directory
+WORKDIR /app
 
 # Run the worker script when the container launches
 CMD ["python", "worker.py"]

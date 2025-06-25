@@ -1,36 +1,30 @@
-FROM python:3.8
+FROM python:3.8-slim
 
 WORKDIR /app
 
-# Copy shared package first
-COPY shared /app/shared
-
-# Install shared package
-RUN pip install -e /app/shared
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y libgl1-mesa-glx curl git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
-COPY backend/requirements.txt .
+COPY requirements.txt .
+
+# Install shared package from git repository (more independent)
+RUN pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@release#subdirectory=shared
+
+# Install other dependencies
 RUN pip install -r requirements.txt
 
-# Copy backend code to backend subdirectory
-COPY backend/ /app/backend/
+# Copy backend code
+COPY . /app/
 
-# Install additional system dependencies
-RUN apt-get update && \
-    apt-get install -y libgl1-mesa-glx
-
+# Install additional dependencies
 RUN pip install multipart
 
-# COPY /etc/ssl/certs/* /app/etc/ssl/certs
-
-# COPY /etc/ssl/cert.pem /app/etc/ssl/cert.pem
-
-# COPY /usr/local/share/ca-certificates/* /app/usr/local/share/ca-certificates
-
-# RUN update-ca-certificates
-
-# Set working directory to backend
-WORKDIR /app/backend
+# Set working directory
+WORKDIR /app
 
 # Expose the port used by the backend service
 EXPOSE 5000

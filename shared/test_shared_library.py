@@ -15,7 +15,7 @@ def test_shared_library():
     
     try:
         # Test imports
-        from stock_portfolio_shared.constants.general_constants import BUY, SELL, DATE_FORMAT
+        from stock_portfolio_shared.constants.general_constants import BUY, SELL, DATA_TIME_FORMAT
         print("✅ Constants imported successfully")
         
         from stock_portfolio_shared.utils.sheet_manager import SheetsManager
@@ -30,7 +30,7 @@ def test_shared_library():
         # Test constants
         print(f"✅ BUY constant: {BUY}")
         print(f"✅ SELL constant: {SELL}")
-        print(f"✅ DATE_FORMAT constant: {DATE_FORMAT}")
+        print(f"✅ DATA_TIME_FORMAT constant: {DATA_TIME_FORMAT}")
         
         # Test classes
         sheets_manager = SheetsManager()

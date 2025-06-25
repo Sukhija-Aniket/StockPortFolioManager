@@ -23,11 +23,10 @@ services:
   # Backend service for Python
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      # dockerfile: Dockerfile
     volumes:
-      - ./backend:/app/backend
-      - ./shared:/app/shared
+      - ./backend:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/stock_portfolio
       - RABBITMQ_HOST=rabbitmq
@@ -96,11 +95,10 @@ services:
   # Service for the worker.py script (Async)
   worker:
     build:
-      context: .
-      dockerfile: worker/Dockerfile
+      context: ./worker
+      dockerfile: Dockerfile
     volumes:
-      - ./worker:/app/worker
-      - ./shared:/app/shared
+      - ./worker:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/stock_portfolio
       - RABBITMQ_HOST=rabbitmq
@@ -135,11 +133,10 @@ services:
   # Uncomment and adjust as needed
   # worker-2:
   #   build:
-  #     context: .
-  #     dockerfile: worker/Dockerfile
+  #     context: ./worker
+  #     dockerfile: Dockerfile
   #   volumes:
   #     - ./worker:/app
-  #     - ./shared:/app/shared
   #   environment:
   #     - RABBITMQ_HOST=rabbitmq
   #     - RABBITMQ_USERNAME=username
