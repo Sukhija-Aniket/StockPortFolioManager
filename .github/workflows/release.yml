@@ -18,6 +18,12 @@ on:
         options:
           - release
 
+# Allow the workflow to bypass branch protection rules
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
