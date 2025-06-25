@@ -1,0 +1,29 @@
+FROM python:3.8-slim
+
+WORKDIR /app
+
+# Copy the requirements files
+COPY worker/requirements.txt .
+COPY worker/requirements-dev.txt .
+
+# Copy shared package for development
+COPY shared /app/shared
+
+# Install shared package in editable mode for development
+RUN pip install -e /app/shared
+
+# Install other dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# Copy worker code
+COPY worker/ /app/
+
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && chmod 755 /app/logs
+
+# Set working directory
+WORKDIR /app
+
+# Run the worker script when the container launches
+CMD ["python", "worker.py"] 

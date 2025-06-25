@@ -1,0 +1,13 @@
+# Development requirements for backend
+# Install shared package in editable mode for development
+-e ../shared
+
+# Include all production requirements
+-r requirements.txt
+
+# Additional development dependencies
+pytest>=6.0
+pytest-cov>=2.0
+black>=21.0
+flake8>=3.8
+mypy>=0.900 
