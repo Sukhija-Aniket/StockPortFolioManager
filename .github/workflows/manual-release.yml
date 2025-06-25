@@ -58,36 +58,6 @@ jobs:
           git reset --hard origin/${{ github.event.inputs.source_branch }}
           git push origin release --force
 
-      - name: Create .autorc
-        run: |
-          # Check if .autorc exists and backup if needed
-          if [ -f ".autorc" ]; then
-            echo "Backing up existing .autorc file..."
-            cp .autorc .autorc.backup
-          fi
-          
-          # Create new .autorc for release
-          cat > .autorc << EOF
-          {
-            "plugins": [
-              "git-tag"
-            ],
-            "owner": "Sukhija-Aniket",
-            "repo": "StockPortfolioManager",
-            "name": "github-actions[bot]",
-            "email": "github-actions[bot]@users.noreply.github.com",
-            "baseBranch": "release",
-            "onlyPublishWithReleaseLabel": false,
-            "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          }
-          EOF
-
-      - name: Commit .autorc
-        run: |
-          git add .autorc
-          git commit -m "Update .autorc for release" || true
-          git push origin release
-
       - name: Ensure clean working directory
         run: |
           git status
@@ -99,6 +69,7 @@ jobs:
           fi
 
       - name: Run auto shipit
+        id: auto
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

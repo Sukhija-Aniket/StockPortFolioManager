@@ -4,7 +4,16 @@
   ],
   "owner": "Sukhija-Aniket",
   "repo": "StockPortfolioManager",
-  "name": "Sukhija-Aniket",
-  "email": "b20081.aniket@gmail.com",
-  "baseBranch": "upgrade"
+  "name": "github-actions[bot]",
+  "email": "github-actions[bot]@users.noreply.github.com",
+  "baseBranch": "release",
+  "onlyPublishWithReleaseLabel": false,
+  "author": "github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+  "labels": {
+    "major": "Version: Major",
+    "minor": "Version: Minor", 
+    "patch": "Version: Patch",
+    "internal": "Version: Internal",
+    "documentation": "Version: Documentation"
+  }
 }
