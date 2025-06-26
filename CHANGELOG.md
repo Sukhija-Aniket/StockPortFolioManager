@@ -1,3 +1,16 @@
+# v0.0.21 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: improve frontend as well (aniket_sukhija@intuit.com)
+- feat: handing done on backend side (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.20 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
