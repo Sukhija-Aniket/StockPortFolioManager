@@ -1,3 +1,17 @@
+# v0.0.11 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- chore: use lowercase 'dockerfile' everywhere for consistency and remove DockerFile with capital F (aniket_sukhija@intuit.com)
+- fix: update DockerFile to use versioned git tag (aniket_sukhija@intuit.com)
+- fix: add __init__.py to constants package and use absolute imports (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.10 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
