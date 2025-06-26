@@ -1,3 +1,15 @@
+# v0.0.12 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: backend dockerfile (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.11 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
