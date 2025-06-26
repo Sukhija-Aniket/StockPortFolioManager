@@ -6,11 +6,11 @@ import openpyxl
 import pandas as pd
 import logging
 from openpyxl.styles import Font, PatternFill
-from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
-from stock_portfolio_shared.utils.base_manager import BaseManager
+from ..models.spreadsheet_task import SpreadsheetTask
+from .base_manager import BaseManager
 from ..constants.general_constants import BUY, CELL_RANGE, DATA_TIME_FORMAT, SELL
 from ..constants.raw_constants import Raw_constants
-from ..utils.data_processor import DataProcessor
+from .data_processor import DataProcessor
 import os
 
 logger = logging.getLogger(__name__)

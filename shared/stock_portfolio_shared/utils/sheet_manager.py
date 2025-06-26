@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import AuthorizedSession
-from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+from ..models.spreadsheet_task import SpreadsheetTask
 
 from .base_manager import BaseManager
 from ..constants.general_constants import BUY, CELL_RANGE
@@ -17,7 +17,7 @@ from ..constants.raw_constants import Raw_constants
 from ..constants.share_profit_loss_constants import ShareProfitLoss_constants
 from ..constants.daily_profit_loss_constants import DailyProfitLoss_constants
 from ..constants.taxation_constants import Taxation_constants
-from ..utils.data_processor import DataProcessor
+from .data_processor import DataProcessor
 
 logger = logging.getLogger(__name__)
 

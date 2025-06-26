@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 from typing import Dict, Optional
-from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
+from .spreadsheet_type import SpreadsheetType
 
 
 @dataclass
