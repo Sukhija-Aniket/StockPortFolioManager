@@ -12,7 +12,7 @@ class Spreadsheet(db.Model):
     date_created = db.Column(db.String(120), nullable=False)
     spreadsheet_id = db.Column(db.String(200), nullable=False, unique=True)
     data_hash = db.Column(db.String(200), nullable=True) # hash of the data in the spreadsheet
-    metadata = db.Column(db.Text, nullable=True) # JSON string for storing metadata
+    participant_metadata = db.Column(db.Text, nullable=True) # JSON string for storing participant metadata
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
@@ -24,9 +24,9 @@ class Spreadsheet(db.Model):
     
     def get_metadata(self):
         """Get metadata as dictionary"""
-        if self.metadata:
+        if self.participant_metadata:
             try:
-                return json.loads(self.metadata)
+                return json.loads(self.participant_metadata)
             except json.JSONDecodeError:
                 return {}
         return {}
@@ -34,9 +34,9 @@ class Spreadsheet(db.Model):
     def set_metadata(self, metadata_dict):
         """Set metadata from dictionary"""
         if metadata_dict:
-            self.metadata = json.dumps(metadata_dict)
+            self.participant_metadata = json.dumps(metadata_dict)
         else:
-            self.metadata = None
+            self.participant_metadata = None
     
     def to_dict(self):
         """Convert spreadsheet to dictionary"""
