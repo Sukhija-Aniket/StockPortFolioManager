@@ -1,3 +1,16 @@
+# v0.0.23 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: backend working completely (aniket_sukhija@intuit.com)
+- feat: fix again (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.22 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
