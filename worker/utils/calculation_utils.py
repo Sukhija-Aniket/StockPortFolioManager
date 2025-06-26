@@ -5,7 +5,7 @@ from stock_portfolio_shared.constants.trans_details_constants import TransDetail
 from stock_portfolio_shared.utils.data_processor import DataProcessor
 from worker.config.config import Config
 from worker.config.logging_config import setup_logging
-from utils.participant_config_manager import ParticipantConfigManager
+from worker.config.participant_config_manager import ParticipantConfigManager
 
 logger = setup_logging(__name__)
 config = Config()

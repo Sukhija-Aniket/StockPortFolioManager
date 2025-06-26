@@ -11,7 +11,7 @@ from database import get_db
 from models.execution_record import ExecutionRecord
 
 # Setup logging
-from utils.logging_config import setup_logging
+from worker.config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 class ExecutionRecordService:

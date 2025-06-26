@@ -1,6 +1,6 @@
 import logging
 import os
-from config import Config
+from worker.config.config import Config
 
 def setup_logging(name=__name__, level=None):
     """Setup logging configuration"""
