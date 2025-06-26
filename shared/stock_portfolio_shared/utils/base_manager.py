@@ -3,7 +3,7 @@ from typing import Dict, Any, Callable, List
 import pandas as pd
 import logging
 
-from ..models.spreadsheet_task import SpreadsheetTask
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 
 logger = logging.getLogger(__name__)
 

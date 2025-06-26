@@ -21,14 +21,14 @@ from .constants.taxation_constants import Taxation_constants
 from .constants.data_constants import Data_constants
 from .constants.order_constants import Order_constants
 
-# Import utilities using relative imports
-from .utils.sheet_manager import SheetsManager
-from .utils.excel_manager import ExcelManager
-from .utils.data_processor import DataProcessor
+# Import utilities using absolute imports (now that utils is a package)
+from stock_portfolio_shared.utils.sheet_manager import SheetsManager
+from stock_portfolio_shared.utils.excel_manager import ExcelManager
+from stock_portfolio_shared.utils.data_processor import DataProcessor
 
-# Import models using relative imports
-from .models.spreadsheet_task import SpreadsheetTask
-from .models.spreadsheet_type import SpreadsheetType
+# Import models using absolute imports (now that models is a package)
+from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
 
 __all__ = [
     # Constants
