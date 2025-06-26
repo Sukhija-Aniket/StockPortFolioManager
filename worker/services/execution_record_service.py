@@ -177,7 +177,7 @@ class ExecutionRecordService:
         record = self.load_execution_record(spreadsheet_id, {'status': 'completed'})
         
         if not record:
-            logger.info(f"No previous completedexecution record found for {spreadsheet_id}, will process")
+            logger.info(f"No previous completed execution record found for {spreadsheet_id}, will process")
             return True
         
         last_hash = record.data_hash

@@ -52,7 +52,7 @@ def calculate_exchange_transaction_charges(row, participant_name: str = "zerodha
         rate = participant_config_manager.get_exchange_transaction_charges_rate(participant_name, exchange)
         return abs(net_amount * rate)
     except Exception as e:
-        logger.error(f"Error calculating transaction charges for {participant_name}: {e}")
+        logger.error(f"Error calculating exchange transaction charges for {participant_name}: {e}")
         raise
 
 def calculate_brokerage(row, participant_name: str = "zerodha"):
@@ -116,14 +116,14 @@ def calculate_dp_charges(row, dp_data, participant_name: str = "zerodha"):
         logger.error(f"Error calculating DP charges for {participant_name}: {e}")
         raise
 
-def calculate_transaction_charges(row, participant_name: str = "zerodha"):
+def calculate_sebi_transaction_charges(row, participant_name: str = "zerodha"):
     """Calculate exchange transaction charges with participant-specific rates"""
     try:
-        net_amount = row[TransDetails_constants.NET_AMOUNT]
-        rate = participant_config_manager.get_transaction_charges_rate(participant_name)
+        net_amount = row[Raw_constants.NET_AMOUNT]
+        rate = participant_config_manager.get_sebi_transaction_charges_rate(participant_name)
         return abs(net_amount * rate)
     except Exception as e:
-        logger.error(f"Error calculating exchange transaction charges for {participant_name}: {e}")
+        logger.error(f"Error calculating transaction charges for {participant_name}: {e}")
         raise
 
 def calculate_gst(row, participant_name: str = "zerodha"):

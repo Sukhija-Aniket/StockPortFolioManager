@@ -89,7 +89,7 @@ class ParticipantConfigManager:
     def get_exchange_transaction_charges_rate(self, participant_name: str, exchange: str) -> float:
         """Get transaction charges rate for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["transaction_charges"][exchange.upper()]
+        return config["exchange_transaction_charges"][exchange.upper()]
     
     def get_stamp_duty_rate(self, participant_name: str) -> float:
         """Get stamp duty rate for a participant"""
@@ -106,10 +106,10 @@ class ParticipantConfigManager:
         config = self.get_participant_config(participant_name)
         return config["gst_rate"]
     
-    def get_transaction_charges_rate(self, participant_name: str) -> float:
+    def get_sebi_transaction_charges_rate(self, participant_name: str) -> float:
         """Get exchange transaction charges rate for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["transaction_charges"]
+        return config["sebi_transaction_charges"]
     
     def reload_config(self):
         """Reload configuration from file"""

@@ -5,11 +5,11 @@
       "delivery": 0.001,
       "intraday": 0.00025
     },
-    "transaction_charges": 0.000001,
+    "sebi_transaction_charges": 0.000001,
     "brokerage": {
         "delivery": {
             "type": "percentage",
-            "rate": "0",
+            "rate": 0,
             "max_amount": 0
         },
         "intraday": {
@@ -35,7 +35,7 @@
       "delivery": 0.001,
       "intraday": 0.00025
     },
-    "transaction_charges": 0.000001,
+    "sebi_transaction_charges": 0.000001,
     "brokerage": {
       "type": "percentage",
       "rate": 0.0003,
@@ -52,7 +52,7 @@
       "delivery": 0.001,
       "intraday": 0.00025
     },
-    "transaction_charges": 0.000001,
+    "sebi_transaction_charges": 0.000001,
     "brokerage": {
       "type": "percentage",
       "rate": 0.0055,

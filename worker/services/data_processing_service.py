@@ -13,7 +13,7 @@ from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
 from stock_portfolio_shared.utils.data_processor import DataProcessor
 from utils.calculation_utils import (
-    calculate_exchange_transaction_charges, calculate_gst, calculate_stt, calculate_transaction_charges, calculate_brokerage,
+    calculate_exchange_transaction_charges, calculate_gst, calculate_stt, calculate_sebi_transaction_charges, calculate_brokerage,
     calculate_stamp_duty, calculate_dp_charges, calculate_average_cost_of_sold_shares,
     is_long_term, update_intraday_count, convert_dtypes, update_transaction_type,
     get_financial_year
@@ -76,7 +76,7 @@ class DataProcessingService:
                 lambda row: calculate_stt(row, participant_name), axis=1
             )
             data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] = data.apply(
-                lambda row: calculate_transaction_charges(row, participant_name), axis=1
+                lambda row: calculate_sebi_transaction_charges(row, participant_name), axis=1
             )
             data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = data.apply(
                 lambda row: calculate_exchange_transaction_charges(row, participant_name), axis=1
