@@ -25,7 +25,7 @@ class GoogleService:
     def get_authorization_url(self, state):
         """Get Google OAuth authorization URL"""
         try:
-            authorization_url, state = self.flow.authorization_url(access_type='offline', include_granted_scopes='true')
+            authorization_url, state = self.flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent')
             return authorization_url, state
         except Exception as e:
             logger.error(f"Error getting authorization URL: {e}")

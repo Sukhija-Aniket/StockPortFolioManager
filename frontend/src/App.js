@@ -155,18 +155,21 @@ const App = () => {
     const fetchUserData = async () => {
       try {
         const data = await apiGet('/auth/user');
-        console.log("Response: ", data);
-        setUser(data);
-        fetchSpreadsheets();
+        // Handle new response format with token validation
+        if (data.user && data.token_valid) {
+          setUser(data.user);
+          fetchSpreadsheets();
+        } else {
+          throw new Error('Internal server error');
+        }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // If it's a 401 error, the user is not logged in - this is expected
-        // Don't show an error message or reload the page
-        if (error.message === 'Unauthorized') {
-          console.log('User not logged in - showing login page');
-          // User will see the login section since user state is null
+        setUser(null);
+        if (error.response && error.response.status === 401 && error.response.data.error === 'Unauthorized') {
+          return;
+        } else if (error.response && error.response.status === 401 && error.response.data.error === 'Token expired' || error.response.data.error === 'Invalid Credentials') {
+          setAlertMessage({ type: 'danger', text: 'Token expired or invalid' });
         } else {
-          // For other errors, show an alert
           setAlertMessage({ type: 'danger', text: 'Failed to fetch user data' });
         }
       }
