@@ -13,8 +13,8 @@ RUN apt-get update && \
 # Copy the requirements file
 COPY requirements.txt .
 
-# Install shared package from git repository (more independent)
-RUN pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@release#subdirectory=shared
+# Install shared package from git repository with specific version tag
+RUN pip install git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@v0.1.1#subdirectory=shared
 
 # Install other dependencies
 RUN pip install --no-cache-dir -r requirements.txt
