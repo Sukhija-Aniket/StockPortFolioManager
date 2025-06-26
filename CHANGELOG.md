@@ -1,3 +1,15 @@
+# v0.0.10 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: use versioned git tag v0.1.1 for shared package installation (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.9 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
