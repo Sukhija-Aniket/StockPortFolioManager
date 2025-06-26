@@ -2,8 +2,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
 from sqlalchemy import text
-from worker.config.config import Config
-from worker.config.logging_config import setup_logging
+from config.config import Config
+from config.logging_config import setup_logging
 
 logger = setup_logging(__name__)
 

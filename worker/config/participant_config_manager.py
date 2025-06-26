@@ -6,7 +6,7 @@ Handles participant-specific calculation rates and configurations
 import json
 import os
 from typing import Dict, Any
-from worker.config.logging_config import setup_logging
+from config.logging_config import setup_logging
 
 logger = setup_logging(__name__)
 
@@ -78,15 +78,18 @@ class ParticipantConfigManager:
         else:
             return stt_rates["delivery"]
     
-    def get_brokerage_rate(self, participant_name: str) -> Dict[str, Any]:
+    def get_brokerage_rate(self, participant_name: str, is_intraday: bool = False) -> Dict[str, Any]:
         """Get brokerage configuration for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["brokerage"]
+        if is_intraday:
+            return config["brokerage"]["intraday"]
+        else:
+            return config["brokerage"]["delivery"]
     
-    def get_transaction_charges_rate(self, participant_name: str) -> float:
+    def get_exchange_transaction_charges_rate(self, participant_name: str, exchange: str) -> float:
         """Get transaction charges rate for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["transaction_charges"]
+        return config["transaction_charges"][exchange.upper()]
     
     def get_stamp_duty_rate(self, participant_name: str) -> float:
         """Get stamp duty rate for a participant"""
@@ -103,10 +106,10 @@ class ParticipantConfigManager:
         config = self.get_participant_config(participant_name)
         return config["gst_rate"]
     
-    def get_exchange_transaction_charges_rate(self, participant_name: str) -> float:
+    def get_transaction_charges_rate(self, participant_name: str) -> float:
         """Get exchange transaction charges rate for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["exchange_transaction_charges"]
+        return config["transaction_charges"]
     
     def reload_config(self):
         """Reload configuration from file"""

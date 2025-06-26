@@ -7,7 +7,7 @@ from stock_portfolio_shared.constants.share_profit_loss_constants import SharePr
 from stock_portfolio_shared.constants.daily_profit_loss_constants import DailyProfitLoss_constants
 from stock_portfolio_shared.constants.taxation_constants import Taxation_constants
 from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
-from worker.config.config import Config
+from config.config import Config
 from helper.market_data_helper import MarketDataHelper
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
@@ -19,7 +19,7 @@ from utils.calculation_utils import (
     get_financial_year
 )
 
-from worker.config.logging_config import setup_logging
+from config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 class DataProcessingService:
@@ -52,8 +52,9 @@ class DataProcessingService:
         """Process transaction details data with participant-specific calculations"""
         try:
             # Ensure numeric columns are properly converted using DataProcessor.safe_numeric
-            data[TransDetails_constants.QUANTITY] = data[TransDetails_constants.QUANTITY].apply(DataProcessor.safe_numeric)
-            data[TransDetails_constants.NET_AMOUNT] = data[TransDetails_constants.NET_AMOUNT].apply(DataProcessor.safe_numeric)
+            data[Raw_constants.QUANTITY] = data[Raw_constants.QUANTITY].apply(DataProcessor.safe_numeric)
+            data[Raw_constants.NET_AMOUNT] = data[Raw_constants.NET_AMOUNT].apply(DataProcessor.safe_numeric)
+            data[Raw_constants.PRICE] = data[Raw_constants.PRICE].apply(DataProcessor.safe_numeric)
             
             # Update transaction types
             data[TransDetails_constants.TRANSACTION_TYPE] = data[TransDetails_constants.QUANTITY].apply(
@@ -66,6 +67,9 @@ class DataProcessingService:
             
             # Update intraday count
             data = update_intraday_count(data)
+            
+            # Create a shared dp_data dictionary to track DP charges per name/date combination
+            dp_data = {}
             
             # Calculate charges with participant-specific rates
             data[TransDetails_constants.STT] = data.apply(
@@ -80,14 +84,14 @@ class DataProcessingService:
             data[TransDetails_constants.BROKERAGE] = data.apply(
                 lambda row: calculate_brokerage(row, participant_name), axis=1
             )
-            data[TransDetails_constants.GST] = data.apply(
-                lambda row: calculate_gst(row, participant_name), axis=1
-            )
             data[TransDetails_constants.STAMP_DUTY] = data.apply(
                 lambda row: calculate_stamp_duty(row, participant_name), axis=1
             )
             data[TransDetails_constants.DP_CHARGES] = data.apply(
-                lambda row: calculate_dp_charges(row, participant_name), axis=1
+                lambda row: calculate_dp_charges(row, dp_data, participant_name), axis=1
+            )
+            data[TransDetails_constants.GST] = data.apply(
+                lambda row: calculate_gst(row, participant_name), axis=1
             )
             
             # Calculate final amount
@@ -96,10 +100,10 @@ class DataProcessingService:
                 data[TransDetails_constants.STT] + 
                 data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] + 
                 data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + 
-                data[TransDetails_constants.GST] + 
                 data[TransDetails_constants.STAMP_DUTY] + 
                 data[TransDetails_constants.DP_CHARGES] + 
-                data[TransDetails_constants.BROKERAGE]
+                data[TransDetails_constants.BROKERAGE] +
+                data[TransDetails_constants.GST]
             )
             
             return data
@@ -211,7 +215,7 @@ class DataProcessingService:
                 quantity = 0.0
                 logger.warning(f"Invalid transaction data: {transaction}")
             
-            if num_shares_sold - quantity != 0:
+            if abs(num_shares_sold - quantity) >= 0.01:
                 average_sale_price = (average_sale_price * num_shares_sold - net_amount) / (num_shares_sold - quantity)
             num_shares_sold -= quantity
             current_investment += net_amount
@@ -248,7 +252,7 @@ class DataProcessingService:
                 quantity = 0.0
                 logger.warning(f"Invalid transaction data: {transaction}")
             
-            if num_shares_bought + quantity != 0:
+            if abs(num_shares_bought + quantity) >= 0.01:
                 average_buy_price = (average_buy_price * num_shares_bought + net_amount) / (num_shares_bought + quantity)
             num_shares_bought += quantity
             current_investment += net_amount

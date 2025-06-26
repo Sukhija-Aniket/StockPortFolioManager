@@ -34,7 +34,7 @@ def handle_google_api_errors(func):
             if e.resp.status == 401:
                 # Token is invalid/expired - trigger re-authentication
                 logger.warning(f"Google API 401 error in {func.__name__}: {e}")
-                raise GoogleAuthError("Authentication required - token expired or invalid")
+                raise GoogleAuthError("Authentication required")
             elif e.resp.status == 403:
                 # Permission denied
                 logger.error(f"Google API 403 error in {func.__name__}: {e}")

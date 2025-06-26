@@ -2,7 +2,7 @@ import asyncio
 import pika
 import json
 import os
-from worker.config.config import Config
+from config.config import Config
 from database import init_db, test_connection
 from services.trading_orchestrator import TradingOrchestrator
 from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
@@ -17,7 +17,7 @@ sheets_manager = SheetsManager()
 excel_manager = ExcelManager()
 
 # Setup logging
-from worker.config.logging_config import setup_logging
+from config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 class AsyncWorker:

@@ -1,11 +1,12 @@
 from datetime import datetime
 import pandas as pd
+from stock_portfolio_shared.constants.general_constants import BUY, SELL
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
 from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants
 from stock_portfolio_shared.utils.data_processor import DataProcessor
-from worker.config.config import Config
-from worker.config.logging_config import setup_logging
-from worker.config.participant_config_manager import ParticipantConfigManager
+from config.config import Config
+from config.logging_config import setup_logging
+from config.participant_config_manager import ParticipantConfigManager
 
 logger = setup_logging(__name__)
 config = Config()
@@ -43,11 +44,12 @@ def calculate_stt(row, participant_name: str = "zerodha"):
         logger.error(f"Error calculating STT for {participant_name}: {e}")
         raise
 
-def calculate_transaction_charges(row, participant_name: str = "zerodha"):
+def calculate_exchange_transaction_charges(row, participant_name: str = "zerodha"):
     """Calculate SEBI transaction charges with participant-specific rates"""
     try:
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        rate = participant_config_manager.get_transaction_charges_rate(participant_name)
+        net_amount = row[Raw_constants.NET_AMOUNT]
+        exchange = row[Raw_constants.STOCK_EXCHANGE]
+        rate = participant_config_manager.get_exchange_transaction_charges_rate(participant_name, exchange)
         return abs(net_amount * rate)
     except Exception as e:
         logger.error(f"Error calculating transaction charges for {participant_name}: {e}")
@@ -56,19 +58,13 @@ def calculate_transaction_charges(row, participant_name: str = "zerodha"):
 def calculate_brokerage(row, participant_name: str = "zerodha"):
     """Calculate brokerage charges with participant-specific rates"""
     try:
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        brokerage_config = participant_config_manager.get_brokerage_rate(participant_name)
-        
-        if brokerage_config.get("type") == "percentage":
-            rate = brokerage_config.get("rate", 0.0005)
-            max_amount = brokerage_config.get("max_amount", 20.0)
-            
-            # Calculate percentage-based brokerage with maximum cap
-            brokerage = abs(net_amount * rate)
-            return min(brokerage, max_amount)
-        else:
-            # Fixed brokerage
-            return brokerage_config.get("fixed_amount", 20.0)
+        net_amount = row[Raw_constants.NET_AMOUNT]
+        intraday_brokerage_rate = participant_config_manager.get_brokerage_rate(participant_name, is_intraday=True)
+        delivery_brokerage_rate = participant_config_manager.get_brokerage_rate(participant_name, is_intraday=False)
+        delivery_quantity = abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]
+        delivery_brokerage = min(delivery_quantity * delivery_brokerage_rate["rate"] * row[Raw_constants.PRICE], delivery_brokerage_rate["max_amount"])
+        intraday_brokerage = min(row[TransDetails_constants.INTRADAY_COUNT] * intraday_brokerage_rate["rate"] * row[Raw_constants.PRICE], intraday_brokerage_rate["max_amount"])
+        return intraday_brokerage + delivery_brokerage
             
     except Exception as e:
         logger.error(f"Error calculating brokerage for {participant_name}: {e}")
@@ -77,28 +73,54 @@ def calculate_brokerage(row, participant_name: str = "zerodha"):
 def calculate_stamp_duty(row, participant_name: str = "zerodha"):
     """Calculate stamp duty with participant-specific rates"""
     try:
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        rate = participant_config_manager.get_stamp_duty_rate(participant_name)
-        return abs(net_amount * rate)
+        delivery_rate = participant_config_manager.get_stamp_duty_rate(participant_name, is_intraday=False)
+        intraday_rate = participant_config_manager.get_stamp_duty_rate(participant_name, is_intraday=True)
+        
+        delivery_quantity = abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]
+        delivery_charges = delivery_quantity * delivery_rate * row[Raw_constants.PRICE]
+        
+        intraday_charges = row[TransDetails_constants.INTRADAY_COUNT] * intraday_rate * row[Raw_constants.PRICE]
+        
+        return intraday_charges + delivery_charges
     except Exception as e:
         logger.error(f"Error calculating stamp duty for {participant_name}: {e}")
         raise
 
-def calculate_dp_charges(row, participant_name: str = "zerodha"):
+def calculate_dp_charges(row, dp_data, participant_name: str = "zerodha"):
     """Calculate DP charges with participant-specific rates"""
     try:
-        quantity = DataProcessor.safe_numeric(row[TransDetails_constants.QUANTITY])
-        dp_charges = participant_config_manager.get_dp_charges(participant_name)
-        return dp_charges if quantity > 0 else 0
+        if row[TransDetails_constants.Transaction_type] == config.SELL and (abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]) > 0:
+        
+            # Only apply DP charges for delivery transactions (non-intraday)
+            name = row[Raw_constants.NAME]
+            date = row[Raw_constants.DATE]
+            
+            # Initialize name in dp_data if not exists
+            if name not in dp_data:
+                dp_data[name] = {}
+            
+            # Check if DP charges already applied for this name/date combination
+            if date not in dp_data[name]:
+                # First time seeing this name/date combination - apply DP charges
+                dp_charges = participant_config_manager.get_dp_charges(participant_name)
+                dp_data[name][date] = dp_charges
+                return dp_charges
+            else:
+                # DP charges already applied for this name/date combination - return 0
+                return 0
+        else:
+            # No delivery quantity - no DP charges
+            return 0
+            
     except Exception as e:
         logger.error(f"Error calculating DP charges for {participant_name}: {e}")
         raise
 
-def calculate_exchange_transaction_charges(row, participant_name: str = "zerodha"):
+def calculate_transaction_charges(row, participant_name: str = "zerodha"):
     """Calculate exchange transaction charges with participant-specific rates"""
     try:
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        rate = participant_config_manager.get_exchange_transaction_charges_rate(participant_name)
+        net_amount = row[TransDetails_constants.NET_AMOUNT]
+        rate = participant_config_manager.get_transaction_charges_rate(participant_name)
         return abs(net_amount * rate)
     except Exception as e:
         logger.error(f"Error calculating exchange transaction charges for {participant_name}: {e}")
@@ -108,41 +130,73 @@ def calculate_gst(row, participant_name: str = "zerodha"):
     """Calculate GST with participant-specific rates"""
     try:
         # GST is calculated on brokerage + transaction charges + exchange charges
-        brokerage = calculate_brokerage(row, participant_name)
-        transaction_charges = calculate_transaction_charges(row, participant_name)
-        exchange_charges = calculate_exchange_transaction_charges(row, participant_name)
-        
+        brokerage = row[TransDetails_constants.BROKERAGE]
+        dp_charges = row[TransDetails_constants.DP_CHARGES]
+        exchange_charges = row[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES]
         gst_rate = participant_config_manager.get_gst_rate(participant_name)
-        return abs(gst_rate * (brokerage + transaction_charges + exchange_charges))
+        return abs(gst_rate * (brokerage + dp_charges + exchange_charges))
     except Exception as e:
         logger.error(f"Error calculating GST for {participant_name}: {e}")
         raise
 
-def calculate_average_cost_of_sold_shares(info_map):
-    """Calculate average cost of sold shares"""
-    try:
-        total_cost = 0.0
-        total_shares = 0
-        
-        if config.BUY in info_map:
-            # Process DataFrame group instead of list
-            for _, transaction in info_map[config.BUY].iterrows():
-                try:
-                    final_amount = DataProcessor.safe_numeric(transaction[TransDetails_constants.FINAL_AMOUNT])
-                    quantity = DataProcessor.safe_numeric(transaction[TransDetails_constants.QUANTITY])
-                    total_cost += final_amount
-                    total_shares += quantity
-                except (ValueError, TypeError):
-                    logger.warning(f"Invalid transaction data in average cost calculation: {transaction}")
-                    continue
-        
-        if total_shares > 0:
-            return total_cost / total_shares
-        return 0.0
-        
-    except Exception as e:
-        logger.error(f"Error calculating average cost: {e}")
-        return 0.0
+def calculate_average_cost_of_sold_shares(infoMap):
+    sold_list = infoMap[SELL]
+    buy_list = infoMap[BUY]
+
+    j = 0
+    price = 0
+    intraCount = 0
+    delCount = 0
+    counter = 0
+
+    # Calculating for IntraDay Orders
+    for i in range(0, len(sold_list)):
+        sold_list[i][Raw_constants.QUANTITY] = abs(sold_list[i][Raw_constants.QUANTITY])
+        sold_list[i][TransDetails_constants.FINAL_AMOUNT] = abs(sold_list[i][TransDetails_constants.FINAL_AMOUNT])
+        if j >= len(buy_list):
+            break
+        if buy_list[j][Raw_constants.DATE] == sold_list[i][Raw_constants.DATE]:
+            if buy_list[j][Raw_constants.QUANTITY] < sold_list[i][Raw_constants.QUANTITY]:
+                intraCount += buy_list[j][Raw_constants.QUANTITY]
+                sold_list[i][Raw_constants.QUANTITY] -= buy_list[j][Raw_constants.QUANTITY]
+                price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
+                buy_list[j][Raw_constants.QUANTITY] = 0
+                buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
+                j += 1
+                i -= 1
+            elif buy_list[j][Raw_constants.QUANTITY] > sold_list[i][Raw_constants.QUANTITY]:
+                price += ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] * sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
+                buy_list[j][TransDetails_constants.FINAL_AMOUNT] -= ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] *
+                                    sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
+                buy_list[j][Raw_constants.QUANTITY] -= sold_list[i][Raw_constants.QUANTITY]
+                intraCount += sold_list[i][Raw_constants.QUANTITY]
+                sold_list[i][Raw_constants.QUANTITY] = 0
+            else:
+                intraCount += sold_list[i][Raw_constants.QUANTITY]
+                sold_list[i][Raw_constants.QUANTITY] = 0
+                price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
+                buy_list[j][Raw_constants.QUANTITY] = 0
+                buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
+                j += 1
+        elif buy_list[j][Raw_constants.DATE] < sold_list[i][Raw_constants.DATE]:
+            i -= 1
+            j += 1
+
+    # Calculating for Delivery Orders
+    for x in sold_list:
+        delCount += x[Raw_constants.QUANTITY]
+    for x in buy_list:
+        if x[Raw_constants.QUANTITY] <= (delCount - counter):
+            price += x[TransDetails_constants.FINAL_AMOUNT]
+            counter += x[Raw_constants.QUANTITY]
+        else:
+            price += (x[TransDetails_constants.FINAL_AMOUNT] * (delCount - counter))/x[Raw_constants.QUANTITY]
+            counter = delCount
+    counter += intraCount
+
+    return price/counter
+
+
 
 def is_long_term(buy_date, sell_date):
     """Check if holding period is long term (more than 1 year)"""

@@ -23,7 +23,7 @@ def get_spreadsheets():
         return jsonify(spreadsheets)
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for get_spreadsheets: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except Exception as e:
         logger.error(f"Error getting spreadsheets: {e}")
         return jsonify({'error': 'Failed to get spreadsheets'}), 500
@@ -40,7 +40,7 @@ def get_spreadsheet(spreadsheet_id):
         return jsonify(spreadsheet.to_dict())
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for get_spreadsheet: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except Exception as e:
         logger.error(f"Error getting spreadsheet: {e}")
         return jsonify({'error': 'Failed to get spreadsheet'}), 500
@@ -87,7 +87,7 @@ def create_spreadsheet():
         
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for create_spreadsheet: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except Exception as e:
         logger.error(f"Error creating spreadsheet: {e}")
         return jsonify({'error': 'Failed to create spreadsheet'}), 500
@@ -108,7 +108,7 @@ def delete_spreadsheet(spreadsheet_id):
         
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for delete_spreadsheet: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:

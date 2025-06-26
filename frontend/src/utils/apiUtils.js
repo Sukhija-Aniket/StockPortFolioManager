@@ -17,8 +17,8 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     // Handle 401 errors (authentication required)
-    if (error.response && error.response.status === 401) {
-      console.warn('Authentication required - redirecting to login');
+    if (error.response && error.response.status === 401 && error.response.data.message === 'Authentication required') {
+      console.warn('Authentication required - token expired');
       
       // Clear any stored user data
       localStorage.clear();
@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
       window.location.reload();
       
       // Return a rejected promise to prevent further processing
-      return Promise.reject(new Error('Authentication required - redirected to login'));
+      return Promise.reject(new Error('Authentication required'));
     }
     
     // For other errors, just pass them through
@@ -48,7 +48,7 @@ export const apiCall = async (method, endpoint, data = null, config = {}) => {
     return response.data;
   } catch (error) {
     // If it's a 401 error, it's already handled by the interceptor
-    if (error.message === 'Authentication required - redirected to login') {
+    if (error.message === 'Authentication required') {
       throw error;
     }
     

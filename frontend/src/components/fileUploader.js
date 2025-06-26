@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Button, FormLabel, Form, Row, Col } from 'react-bootstrap';
-import axios from 'axios';
+import { Button, FormLabel, Form, Row, Col, Alert } from 'react-bootstrap';
+import { apiPost } from '../utils/apiUtils';
 
-const FileUploader = ({ onUpload, spreadsheets }) => {
-  const REACT_APP_BACKEND_SERVICE = process.env.REACT_APP_BACKEND_SERVICE;
+const FileUploader = ({ spreadsheets, setAlertMessage }) => {
   const [files, setFiles] = useState(null);
-  const [status, setStatus] = useState('initial');
   const [uploadTitle, setUploadTitle] = useState('');
   const [spreadsheeturl, setSpreadsheeturl] = useState('');
-  const [isDisabled, setIsDisabled] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     console.log("inside the file uploader use effect");
-    setIsDisabled(true);
     setSpreadsheeturl('');
     console.log("here also")
     console.log(files);
@@ -21,7 +18,6 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
       for (let sheet in spreadsheets) {
         if (spreadsheets[sheet].title === uploadTitle) {
           setSpreadsheeturl(spreadsheets[sheet].url)
-          setIsDisabled(false);
         }
         console.log(spreadsheets[sheet].title)
       }
@@ -32,22 +28,20 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
     console.log("reset state for file uploader");
     // setFiles(null);
     setUploadTitle('');
-    setTimeout(() => setStatus('initial'), 2000);
+    setSpreadsheeturl('');
+    setTimeout(() => setLoading(false), 2000);
   }
 
   const handleFileChange = (e) => {
-    if (status === 'uploading') {
+    if (loading) {
       return;
     }
-    setStatus('uploading')
     console.log("handling file change");
     console.log("okay getting updated", e);
     console.log(e.target.files);
     if (e.target.files) {
       console.log("entering here as well");
-      setStatus('initial');
       setFiles(e.target.files);
-      // e.target.value = null;
     }
   };
 
@@ -61,6 +55,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
     console.log("handling add data")
     if (files && uploadTitle) {
       console.log('Uploading files...');
+      setLoading(true);
 
       const formData = new FormData();
       [...files].forEach((file) => {
@@ -70,26 +65,28 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
       formData.append('title', uploadTitle);
       formData.append('spreadsheet_type', 'sheets');
       console.log("okay going great: " + formData.getAll('file').toString());
+      
       try {
-        const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/add`, formData, {
-          withCredentials: true,
+        const data = await apiPost('/data/add', formData, {
           headers: {
-            'Content-Type':'multipart/form-data'
+            'Content-Type': 'multipart/form-data'
           }
         });
-
-        const data = await res.data;
-        // Simulate uploading behavior, assuming files are successfully uploaded
+        
         console.log(data);
-        setStatus('success');
+        setAlertMessage({ type: 'success', text: 'Data uploaded successfully!' });
         resetState();
-        if (typeof onUpload === 'function') {
-          onUpload();
-        }
       } catch (error) {
         console.error('Error uploading files:', error);
-        setStatus('fail');
-        resetState();
+        
+        // Handle different types of errors
+        if (error.message === 'Authentication required') {
+          setAlertMessage({ type: 'danger', text: 'Authentication required' });
+        } else {
+          setAlertMessage({ type: 'danger', text: 'Failed to upload data. Please try again.' });
+        }
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -105,14 +102,16 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
               multiple
               onChange={handleFileChange}
               style={{ display: 'none' }}
+              disabled={loading}
             />
             <Button
               as="label"
               htmlFor="file"
               variant="outline-primary"
               className="mb-2"
+              disabled={loading}
             >
-              Add CSV files
+              {loading ? 'Uploading...' : 'Add CSV files'}
             </Button>
           </Col>
           <Col xs="auto">
@@ -125,6 +124,7 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
               value={uploadTitle}
               onChange={(e) => handleTitleChange(e)}
               className="mr-sm-2"
+              disabled={loading}
             />
           </Col>
           <Col className='d-none'>
@@ -136,8 +136,12 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
             />
           </Col>
           <Col xs="auto">
-            <Button variant="success" disabled={isDisabled} onClick={handleAddData}>
-              Add Data
+            <Button 
+              variant="success" 
+              disabled={loading} 
+              onClick={handleAddData}
+            >
+              {loading ? 'Uploading...' : 'Add Data'}
             </Button>
           </Col>
         </Row>
@@ -152,22 +156,8 @@ const FileUploader = ({ onUpload, spreadsheets }) => {
           ))}
         </div>
       )}
-
-      <Result status={status} />
     </>
   );
-};
-
-const Result = ({ status }) => {
-  if (status === 'success') {
-    return <p>✅ Uploaded successfully!</p>;
-  } else if (status === 'fail') {
-    return <p>❌ Upload failed!</p>;
-  } else if (status === 'uploading') {
-    return <p>⏳ Uploading started...</p>;
-  } else {
-    return null;
-  }
 };
 
 export default FileUploader;

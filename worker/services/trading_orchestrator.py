@@ -14,11 +14,11 @@ from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from stock_portfolio_shared.utils.base_manager import BaseManager
 
 # Setup logging
-from worker.config.logging_config import setup_logging
+from config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 # Import configuration and services
-from worker.config.config import Config
+from config.config import Config
 from services.data_processing_service import DataProcessingService
 from services.execution_record_service import ExecutionRecordService
 

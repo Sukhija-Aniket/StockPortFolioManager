@@ -136,7 +136,7 @@ def add_data():
         
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for add_data: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
@@ -200,7 +200,7 @@ def sync_data():
         
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for sync_data: {e}")
-        return jsonify({'error': 'Authentication required - please sign in again'}), 401
+        return jsonify({'error': 'Authentication required'}), 401
     except Exception as e:
         logger.error(f"Error syncing data: {e}")
         return jsonify({'error': 'Failed to sync data'}), 500 

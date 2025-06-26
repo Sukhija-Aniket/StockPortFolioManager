@@ -160,15 +160,25 @@ const App = () => {
         fetchSpreadsheets();
       } catch (error) {
         console.error('Error fetching user data:', error);
+        // If it's a 401 error, the user is not logged in - this is expected
+        // Don't show an error message or reload the page
+        if (error.message === 'Unauthorized') {
+          console.log('User not logged in - showing login page');
+          // User will see the login section since user state is null
+        } else {
+          // For other errors, show an alert
+          setAlertMessage({ type: 'danger', text: 'Failed to fetch user data' });
+        }
       }
     };
 
+    fetchUserData();
+  }, []); // Empty dependency array - only run once on mount
+
+  useEffect(() => {
     const isFormValid = newSpreadsheetTitle.length > 0 && selectedParticipant;
     setIsDisabled(!isFormValid);
-
-    fetchUserData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newSpreadsheetTitle, selectedParticipant]);
+  }, [newSpreadsheetTitle, selectedParticipant]); // Only validate form when these change
 
   const handleSyncData = async () => {
     setLoading(true);
@@ -247,7 +257,6 @@ const App = () => {
       // Even if logout fails, clear local state and redirect
       setUser(null);
       setSpreadsheets([]);
-      window.location.href = '/login';
     }
   };
 
@@ -405,7 +414,10 @@ const App = () => {
                 <h5 className="mb-0">📤 Add Data to Spreadsheet</h5>
               </Card.Header>
               <Card.Body>
-                <FileUploader spreadsheets={spreadsheets} />
+                <FileUploader 
+                  spreadsheets={spreadsheets} 
+                  setAlertMessage={setAlertMessage}
+                />
               </Card.Body>
             </Card>
 
