@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="stock-portfolio-shared",
-    version="0.1.1",
+    version="0.1.2",
     author="Stock Portfolio Manager",
     description="Shared utilities for Stock Portfolio Manager",
     long_description=long_description,
