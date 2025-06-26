@@ -1,3 +1,15 @@
+# v0.0.9 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- fix: use relative imports in __init__.py for git installation compatibility (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.8 (Thu Jun 26 2025)
 
 #### 🐛 Bug Fix
