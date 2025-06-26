@@ -7,10 +7,12 @@ const FileUploader = ({ spreadsheets, setAlertMessage }) => {
   const [uploadTitle, setUploadTitle] = useState('');
   const [spreadsheeturl, setSpreadsheeturl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isDisabled, setIsDisabled] = useState(true);
 
   useEffect(() => {
     console.log("inside the file uploader use effect");
     setSpreadsheeturl('');
+    setIsDisabled(true);
     console.log("here also")
     console.log(files);
     if (files) {
@@ -18,6 +20,7 @@ const FileUploader = ({ spreadsheets, setAlertMessage }) => {
       for (let sheet in spreadsheets) {
         if (spreadsheets[sheet].title === uploadTitle) {
           setSpreadsheeturl(spreadsheets[sheet].url)
+          setIsDisabled(false);
         }
         console.log(spreadsheets[sheet].title)
       }
@@ -29,7 +32,7 @@ const FileUploader = ({ spreadsheets, setAlertMessage }) => {
     // setFiles(null);
     setUploadTitle('');
     setSpreadsheeturl('');
-    setTimeout(() => setLoading(false), 2000);
+    setTimeout(() => setIsDisabled(true), 2000);
   }
 
   const handleFileChange = (e) => {
@@ -138,7 +141,7 @@ const FileUploader = ({ spreadsheets, setAlertMessage }) => {
           <Col xs="auto">
             <Button 
               variant="success" 
-              disabled={loading} 
+              disabled={loading || isDisabled} 
               onClick={handleAddData}
             >
               {loading ? 'Uploading...' : 'Add Data'}
