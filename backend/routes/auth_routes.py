@@ -53,13 +53,27 @@ def oauth2callback():
 
 @auth_bp.route('/user')
 def get_user_data():
-    """Get current user data"""
+    """Get current user data and validate Google access token"""
     try:
         user = session.get('user')
-        if not user:
+        credentials = session.get('credentials')
+        
+        if not user or not credentials:
             return jsonify({'error': 'Unauthorized'}), 401
         
-        return jsonify(user)
+        creds = sheets_manager.dict_to_credentials(credentials)
+        
+        # Check if token is expired
+        if creds.expired:
+            logger.info("Access token is expired")
+            return jsonify({'error': 'Token expired'}), 401
+        logger.info("Access token is valid, %s", creds.expiry.isoformat() if creds.expiry else None)
+        # Token is valid, return user data
+        return jsonify({
+            'user': user,
+            'token_valid': True,
+            'token_expires_at': creds.expiry.isoformat() if creds.expiry else None
+        })
     except Exception as e:
         logger.error(f"Error getting user data: {e}")
         return jsonify({'error': 'Internal server error'}), 500

@@ -447,5 +447,28 @@ class SheetsManager(BaseManager):
             'token_uri': credentials.token_uri,
             'client_id': credentials.client_id,
             'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-        } 
+            'scopes': credentials.scopes,
+            'expiry': credentials.expiry.isoformat() if credentials.expiry else None
+        }
+    
+    def dict_to_credentials(self, credentials_dict):
+        """Convert dictionary back to Credentials object"""
+        from datetime import datetime
+        
+        # Parse expiry if it exists
+        expiry = None
+        if credentials_dict.get('expiry'):
+            try:
+                expiry = datetime.fromisoformat(credentials_dict['expiry'])
+            except (ValueError, TypeError):
+                expiry = None
+        
+        return Credentials(
+            token=credentials_dict.get('token'),
+            refresh_token=credentials_dict.get('refresh_token'),
+            token_uri=credentials_dict.get('token_uri'),
+            client_id=credentials_dict.get('client_id'),
+            client_secret=credentials_dict.get('client_secret'),
+            scopes=credentials_dict.get('scopes'),
+            expiry=expiry
+        ) 
