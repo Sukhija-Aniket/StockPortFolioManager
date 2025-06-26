@@ -1,3 +1,15 @@
+# v0.0.15 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- feat: bump version to v0.1.2 and update Dockerfiles to use new version (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.14 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
