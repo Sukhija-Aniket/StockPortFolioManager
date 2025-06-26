@@ -4,6 +4,7 @@ from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
 from services.data_service import DataService
 from services.spreadsheet_service import SpreadsheetService
+from utils.google_api_wrapper import GoogleAuthError
 from auth import require_auth
 from utils.logging_config import setup_logging
 import os
@@ -133,6 +134,9 @@ def add_data():
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
         
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for add_data: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
@@ -194,6 +198,9 @@ def sync_data():
             'warnings': errors if errors else None
         })
         
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for sync_data: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except Exception as e:
         logger.error(f"Error syncing data: {e}")
         return jsonify({'error': 'Failed to sync data'}), 500 

@@ -1,4 +1,5 @@
 from utils.logging_config import setup_logging
+from utils.google_api_wrapper import handle_google_api_errors
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -39,84 +40,66 @@ class GoogleService:
             logger.error(f"Error exchanging code for token: {e}")
             raise
     
+    @handle_google_api_errors
     def get_user_profile(self, credentials: Credentials) -> dict:
         """Get user profile from Google"""
-        try:
-            authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
-            service = build('oauth2', 'v2', http=authorized_http)
-            profile = service.userinfo().get().execute()
-            return profile
-        except HttpError as e:
-            logger.error(f"Error getting user profile: {e}")
-            raise
+        authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
+        service = build('oauth2', 'v2', http=authorized_http)
+        profile = service.userinfo().get().execute()
+        return profile
     
+    @handle_google_api_errors
     def create_spreadsheet_service(self, credentials):
         """Create Google Sheets service"""
-        try:
-            authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
-            return build('sheets', 'v4', http=authorized_http)
-        except Exception as e:
-            logger.error(f"Error creating sheets service: {e}")
-            raise
+        authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
+        return build('sheets', 'v4', http=authorized_http)
     
+    @handle_google_api_errors
     def create_drive_service(self, credentials):
         """Create Google Drive service"""
-        try:
-            authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
-            return build('drive', 'v3', http=authorized_http)
-        except Exception as e:
-            logger.error(f"Error creating drive service: {e}")
-            raise
+        authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)
+        return build('drive', 'v3', http=authorized_http)
     
+    @handle_google_api_errors
     def create_spreadsheet(self, service, title):
         """Create a new Google Spreadsheet"""
-        try:
-            spreadsheet = {
-                'properties': {
-                    'title': title
-                }
+        spreadsheet = {
+            'properties': {
+                'title': title
             }
-            sheet = service.spreadsheets().create(body=spreadsheet, fields='spreadsheetId').execute()
-            return sheet.get('spreadsheetId')
-        except HttpError as e:
-            logger.error(f"Error creating spreadsheet: {e}")
-            raise
+        }
+        sheet = service.spreadsheets().create(body=spreadsheet, fields='spreadsheetId').execute()
+        return sheet.get('spreadsheetId')
     
+    @handle_google_api_errors
     def setup_spreadsheet_sheets(self, service, spreadsheet_id):
         """Setup initial sheets in the spreadsheet"""
-        try:
-            requests = [
-                {
-                    "updateSheetProperties": {
-                        "properties": {
-                            "sheetId": 0,
-                            "title": "Transactions"
-                        },
-                        "fields": "title"
+        requests = [
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": 0,
+                        "title": "Transactions"
+                    },
+                    "fields": "title"
+                }
+            }
+        ]
+        
+        titles = ["TransDetails Sorted", "Share Profit/Loss", "Daily Profit/Loss", "Taxation"]
+        for title in titles:
+            requests.append({
+                "addSheet": {
+                    "properties": {
+                        "title": title
                     }
                 }
-            ]
-            
-            titles = ["TransDetails Sorted", "Share Profit/Loss", "Daily Profit/Loss", "Taxation"]
-            for title in titles:
-                requests.append({
-                    "addSheet": {
-                        "properties": {
-                            "title": title
-                        }
-                    }
-                })
-            
-            body = {"requests": requests}
-            service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
-        except HttpError as e:
-            logger.error(f"Error setting up spreadsheet sheets: {e}")
-            raise
+            })
+        
+        body = {"requests": requests}
+        service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
     
+    @handle_google_api_errors
     def delete_spreadsheet(self, drive_service, spreadsheet_id):
         """Delete a Google Spreadsheet"""
-        try:
-            drive_service.files().delete(fileId=spreadsheet_id).execute()
-        except HttpError as e:
-            logger.error(f"Error deleting spreadsheet: {e}")
-            raise 
+        drive_service.files().delete(fileId=spreadsheet_id).execute()

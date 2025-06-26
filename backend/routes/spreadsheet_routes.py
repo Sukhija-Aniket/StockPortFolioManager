@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from services.spreadsheet_service import SpreadsheetService
 from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
+from utils.google_api_wrapper import GoogleAuthError
 from auth import require_auth
 from utils.logging_config import setup_logging
 
@@ -20,6 +21,9 @@ def get_spreadsheets():
         if spreadsheets is None:
             return jsonify({'error': 'User not found'}), 404
         return jsonify(spreadsheets)
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for get_spreadsheets: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except Exception as e:
         logger.error(f"Error getting spreadsheets: {e}")
         return jsonify({'error': 'Failed to get spreadsheets'}), 500
@@ -34,6 +38,9 @@ def get_spreadsheet(spreadsheet_id):
         if not spreadsheet:
             return jsonify({'error': 'Spreadsheet not found'}), 404
         return jsonify(spreadsheet.to_dict())
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for get_spreadsheet: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except Exception as e:
         logger.error(f"Error getting spreadsheet: {e}")
         return jsonify({'error': 'Failed to get spreadsheet'}), 500
@@ -78,6 +85,9 @@ def create_spreadsheet():
         
         return jsonify(spreadsheet), 201
         
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for create_spreadsheet: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except Exception as e:
         logger.error(f"Error creating spreadsheet: {e}")
         return jsonify({'error': 'Failed to create spreadsheet'}), 500
@@ -96,6 +106,9 @@ def delete_spreadsheet(spreadsheet_id):
         spreadsheet_service.delete_spreadsheet(user['id'], spreadsheet_id, credentials)
         return jsonify({'message': 'Spreadsheet deleted successfully'}), 200
         
+    except GoogleAuthError as e:
+        logger.warning(f"Authentication required for delete_spreadsheet: {e}")
+        return jsonify({'error': 'Authentication required - please sign in again'}), 401
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:
