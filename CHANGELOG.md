@@ -1,3 +1,16 @@
+# v0.0.8 (Thu Jun 26 2025)
+
+#### 🐛 Bug Fix
+
+- feat: improve [#4](https://github.com/Sukhija-Aniket/StockPortFolioManager/pull/4) (aniket_sukhija@intuit.com [@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+#### Authors: 2
+
+- asukhija (aniket_sukhija@intuit.com)
+- Sukhija-Aniket ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+---
+
 # v0.0.7 (Wed Jun 25 2025)
 
 #### 🐛 Bug Fix
