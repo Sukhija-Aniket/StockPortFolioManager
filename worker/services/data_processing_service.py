@@ -6,19 +6,20 @@ from stock_portfolio_shared.constants.raw_constants import Raw_constants
 from stock_portfolio_shared.constants.share_profit_loss_constants import ShareProfitLoss_constants
 from stock_portfolio_shared.constants.daily_profit_loss_constants import DailyProfitLoss_constants
 from stock_portfolio_shared.constants.taxation_constants import Taxation_constants
-from config import Config
+from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
+from worker.config.config import Config
 from helper.market_data_helper import MarketDataHelper
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 from stock_portfolio_shared.utils.excel_manager import ExcelManager
 from stock_portfolio_shared.utils.data_processor import DataProcessor
 from utils.calculation_utils import (
-    calculate_stt, calculate_transaction_charges, calculate_brokerage,
+    calculate_exchange_transaction_charges, calculate_gst, calculate_stt, calculate_transaction_charges, calculate_brokerage,
     calculate_stamp_duty, calculate_dp_charges, calculate_average_cost_of_sold_shares,
     is_long_term, update_intraday_count, convert_dtypes, update_transaction_type,
     get_financial_year
 )
 
-from utils.logging_config import setup_logging
+from worker.config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 class DataProcessingService:
@@ -47,8 +48,8 @@ class DataProcessingService:
             logger.error(f"Error initializing data: {e}")
             raise
     
-    def process_transaction_details(self, data):
-        """Process transaction details data"""
+    def process_transaction_details(self, data: pd.DataFrame, participant_name: str = "zerodha") -> pd.DataFrame:
+        """Process transaction details data with participant-specific calculations"""
         try:
             # Ensure numeric columns are properly converted using DataProcessor.safe_numeric
             data[TransDetails_constants.QUANTITY] = data[TransDetails_constants.QUANTITY].apply(DataProcessor.safe_numeric)
@@ -66,27 +67,27 @@ class DataProcessingService:
             # Update intraday count
             data = update_intraday_count(data)
             
-            # Calculate charges
-            data[TransDetails_constants.STT] = data.apply(calculate_stt, axis=1)
-            data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] = data.apply(
-                calculate_transaction_charges, axis=1
+            # Calculate charges with participant-specific rates
+            data[TransDetails_constants.STT] = data.apply(
+                lambda row: calculate_stt(row, participant_name), axis=1
             )
-            data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = abs(
-                data[TransDetails_constants.NET_AMOUNT] * 0.000001
+            data[TransDetails_constants.SEBI_TRANSACTION_CHARGES] = data.apply(
+                lambda row: calculate_transaction_charges(row, participant_name), axis=1
+            )
+            data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] = data.apply(
+                lambda row: calculate_exchange_transaction_charges(row, participant_name), axis=1
             )
             data[TransDetails_constants.BROKERAGE] = data.apply(
-                calculate_brokerage, axis=1
+                lambda row: calculate_brokerage(row, participant_name), axis=1
             )
-            data[TransDetails_constants.GST] = abs(
-                0.18 * (data[TransDetails_constants.BROKERAGE] + 
-                       data[TransDetails_constants.EXCHANGE_TRANSACTION_CHARGES] + 
-                       data[TransDetails_constants.SEBI_TRANSACTION_CHARGES])
+            data[TransDetails_constants.GST] = data.apply(
+                lambda row: calculate_gst(row, participant_name), axis=1
             )
             data[TransDetails_constants.STAMP_DUTY] = data.apply(
-                calculate_stamp_duty, axis=1
+                lambda row: calculate_stamp_duty(row, participant_name), axis=1
             )
             data[TransDetails_constants.DP_CHARGES] = data.apply(
-                calculate_dp_charges, axis=1, args=({},)
+                lambda row: calculate_dp_charges(row, participant_name), axis=1
             )
             
             # Calculate final amount
@@ -104,7 +105,7 @@ class DataProcessingService:
             return data
             
         except Exception as e:
-            logger.error(f"Error processing transaction details: {e}")
+            logger.error(f"Error processing transaction details for {participant_name}: {e}")
             raise
         
         

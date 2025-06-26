@@ -9,15 +9,16 @@ from typing import Dict, List, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 
+from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
 from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
 from stock_portfolio_shared.utils.base_manager import BaseManager
 
 # Setup logging
-from utils.logging_config import setup_logging
+from worker.config.logging_config import setup_logging
 logger = setup_logging(__name__)
 
 # Import configuration and services
-from config import Config
+from worker.config.config import Config
 from services.data_processing_service import DataProcessingService
 from services.execution_record_service import ExecutionRecordService
 
@@ -159,7 +160,7 @@ class TradingOrchestrator:
                 return True, execution_record
             
             # Process data in parallel
-            results = self._process_data_parallel(sheet_names, raw_data)
+            results = self._process_data_parallel(sheet_names, raw_data, spreadsheet_task.get_participant_name())
             
             # Update spreadsheet with results
             formatting_funcs = self.manager.get_formatting_funcs(sheet_names)
@@ -201,7 +202,7 @@ class TradingOrchestrator:
             logger.error(f"Error getting spreadsheet data for {spreadsheet_task.spreadsheet_id}: {e}")
             raise
     
-    def _process_data_parallel(self, sheet_names: List[str], raw_data: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    def _process_data_parallel(self, sheet_names: List[str], raw_data: pd.DataFrame, participant_name: str) -> Dict[str, pd.DataFrame]:
         """
         Process data in parallel using multiple threads
         
@@ -214,7 +215,7 @@ class TradingOrchestrator:
         logger.info("Starting parallel data processing")
         
         # First, process transaction details (this is the base for other processing)
-        trans_details_data = self.data_processing_service.process_transaction_details(raw_data)
+        trans_details_data = self.data_processing_service.process_transaction_details(raw_data, participant_name)
         logger.info(f"Completed {sheet_names[1]} processing")
         
         # Define processing tasks that depend on trans_details_data

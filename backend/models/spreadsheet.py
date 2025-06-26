@@ -1,5 +1,6 @@
 from extensions import db
 from datetime import datetime, timezone
+import json
 
 class Spreadsheet(db.Model):
     """Spreadsheet model for storing spreadsheet information"""
@@ -11,6 +12,7 @@ class Spreadsheet(db.Model):
     date_created = db.Column(db.String(120), nullable=False)
     spreadsheet_id = db.Column(db.String(200), nullable=False, unique=True)
     data_hash = db.Column(db.String(200), nullable=True) # hash of the data in the spreadsheet
+    metadata = db.Column(db.Text, nullable=True) # JSON string for storing metadata
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
@@ -19,6 +21,22 @@ class Spreadsheet(db.Model):
 
     def __repr__(self):
         return f'<Spreadsheet {self.title}>'
+    
+    def get_metadata(self):
+        """Get metadata as dictionary"""
+        if self.metadata:
+            try:
+                return json.loads(self.metadata)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+    
+    def set_metadata(self, metadata_dict):
+        """Set metadata from dictionary"""
+        if metadata_dict:
+            self.metadata = json.dumps(metadata_dict)
+        else:
+            self.metadata = None
     
     def to_dict(self):
         """Convert spreadsheet to dictionary"""
@@ -29,5 +47,6 @@ class Spreadsheet(db.Model):
             'url': f'https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}',
             'date_created': self.date_created,
             'user_id': self.user_id,
+            'metadata': self.get_metadata(),
             'created_at': self.created_at.isoformat() if self.created_at else None
         } 

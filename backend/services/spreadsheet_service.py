@@ -1,4 +1,4 @@
-import logging
+from utils.logging_config import setup_logging
 from datetime import datetime
 from extensions import db
 from models.spreadsheet import Spreadsheet
@@ -6,7 +6,7 @@ from models.user import User
 from services.google_service import GoogleService
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 class SpreadsheetService:
     """Service class for handling spreadsheet-related operations"""
@@ -32,7 +32,16 @@ class SpreadsheetService:
             logger.error(f"Error getting user spreadsheets: {e}")
             raise
     
-    def create_spreadsheet(self, user_id, title, credentials):
+    def get_spreadsheets(self, user_id):
+        """Get all spreadsheets for a user by user_id"""
+        try:
+            spreadsheets = Spreadsheet.query.filter_by(user_id=user_id).all()
+            return [spreadsheet.to_dict() for spreadsheet in spreadsheets]
+        except Exception as e:
+            logger.error(f"Error getting spreadsheets: {e}")
+            raise
+    
+    def create_spreadsheet(self, user_id, title, credentials, metadata=None):
         """Create a new spreadsheet for user"""
         try:
             # Convert credentials dict to Credentials object
@@ -54,8 +63,13 @@ class SpreadsheetService:
                 title=title,
                 user_id=user_id,
                 date_created=datetime.now().date().isoformat(),
-                spreadsheet_id=spreadsheet_id
+                spreadsheet_id=spreadsheet_id,
             )
+            
+            # Set metadata if provided
+            if metadata:
+                spreadsheet.set_metadata(metadata)
+            
             db.session.add(spreadsheet)
             db.session.commit()
             
@@ -101,7 +115,7 @@ class SpreadsheetService:
             db.session.rollback()
             raise
     
-    def get_spreadsheet_by_id(self, spreadsheet_id, user_id=None):
+    def get_spreadsheet_by_id(self, spreadsheet_id: str, user_id=None) -> Spreadsheet:
         """Get spreadsheet by ID, optionally checking user ownership"""
         try:
             query = Spreadsheet.query.filter_by(spreadsheet_id=spreadsheet_id)

@@ -1,5 +1,4 @@
-import os
-import logging
+from utils.logging_config import setup_logging
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -9,7 +8,7 @@ import httplib2
 import certifi
 from config import Config
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 class GoogleService:
     """Service class for handling Google API interactions"""
@@ -40,7 +39,7 @@ class GoogleService:
             logger.error(f"Error exchanging code for token: {e}")
             raise
     
-    def get_user_profile(self, credentials):
+    def get_user_profile(self, credentials: Credentials) -> dict:
         """Get user profile from Google"""
         try:
             authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=self.http)

@@ -1,9 +1,9 @@
-import logging
+from utils.logging_config import setup_logging
 from extensions import db
 from models.user import User
 from services.google_service import GoogleService
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 class UserService:
     """Service class for handling user-related operations"""

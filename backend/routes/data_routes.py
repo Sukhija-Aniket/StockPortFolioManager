@@ -1,19 +1,19 @@
 from flask import Blueprint, request, jsonify, session
 from stock_portfolio_shared.models.spreadsheet_type import SpreadsheetType
 from stock_portfolio_shared.models.spreadsheet_task import SpreadsheetTask
+from stock_portfolio_shared.models.depository_participant import DepositoryParticipant
 from services.data_service import DataService
 from services.spreadsheet_service import SpreadsheetService
-from services.google_service import GoogleService
+from auth import require_auth
+from utils.logging_config import setup_logging
 import os
 import tempfile
-import logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 data_bp = Blueprint('data', __name__, url_prefix='/data')
 data_service = DataService()
 spreadsheet_service = SpreadsheetService()
-google_service = GoogleService()
 
 
 def _get_spreadsheet_id(spreadsheet_url):
@@ -27,7 +27,7 @@ def _spreadsheet_to_task(spreadsheet_data, credentials):
     Convert spreadsheet data to SpreadsheetTask object
     
     Args:
-        spreadsheet_data (dict): Spreadsheet data containing url, title, etc.
+        spreadsheet_data (dict): Spreadsheet data containing url, title, metadata, etc.
         credentials (dict): Google credentials for API access
     
     Returns:
@@ -55,28 +55,19 @@ def _spreadsheet_to_task(spreadsheet_data, credentials):
     if not title:
         title = f"Spreadsheet-{spreadsheet_id[:8]}"  # Fallback title
     
-    # Create SpreadsheetTask
+    # Extract metadata from spreadsheet_data (already validated during creation)
+    metadata = spreadsheet_data.get('metadata', {})
+    
+    # Create SpreadsheetTask with metadata
     task = SpreadsheetTask(
         spreadsheet_id=spreadsheet_id,
         spreadsheet_type=SpreadsheetType.SHEETS,
         credentials=credentials,
-        title=title
+        title=title,
+        metadata=metadata
     )
     
     return task
-
-def require_auth(f):
-    """Decorator to require authentication"""
-    def decorated_function(*args, **kwargs):
-        user = session.get('user')
-        credentials = session.get('credentials')
-        if not user:
-            return jsonify({'error': 'Unauthorized'}), 401
-        if not credentials:
-            return jsonify({'error': 'No credentials found'}), 401
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
 
 @data_bp.route('/add', methods=['POST'])
 @require_auth
@@ -113,9 +104,11 @@ def add_data():
             temp_file_path = temp_file.name
         
         # Create spreadsheet data for task conversion
+        # Use existing spreadsheet metadata from database
         spreadsheet_data = {
             'url': spreadsheet_url,
-            'title': request.form.get('title') or spreadsheet.title
+            'title': request.form.get('title') or spreadsheet.title,
+            'metadata': spreadsheet.get_metadata()
         }
         
         # Use the utility function to create task

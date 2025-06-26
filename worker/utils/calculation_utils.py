@@ -3,60 +3,120 @@ import pandas as pd
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
 from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants
 from stock_portfolio_shared.utils.data_processor import DataProcessor
-from config import Config
-from utils.logging_config import setup_logging
+from worker.config.config import Config
+from worker.config.logging_config import setup_logging
+from utils.participant_config_manager import ParticipantConfigManager
+
 logger = setup_logging(__name__)
 config = Config()
 
-def calculate_stt(row):
-    """Calculate Securities Transaction Tax"""
+# Initialize participant config manager
+participant_config_manager = ParticipantConfigManager()
+
+#
+# intraDay_charges, delivery_charges = 0, 0
+#     delivery_charges = (abs(row[Raw_constants.QUANTITY]) -
+#                         row[TransDetails_constants.INTRADAY_COUNT]) * 0.001 * row[Raw_constants.PRICE]
+#     if row[TransDetails_constants.TRANSACTION_TYPE] == SELL:
+#         intraDay_charges = row[TransDetails_constants.INTRADAY_COUNT] * \
+#             0.00025 * row[Raw_constants.PRICE]
+#     return intraDay_charges + delivery_charges 
+# 
+def calculate_stt(row, participant_name: str = "zerodha"):
+    """Calculate Securities Transaction Tax with participant-specific rates"""
+    intraday_charges, delivery_charges = 0.0, 0.0
+    try:
+        # Get participant-specific STT rates
+        delivery_rate = participant_config_manager.get_stt_rate(participant_name, is_intraday=False)
+        intraday_rate = participant_config_manager.get_stt_rate(participant_name, is_intraday=True)
+        
+        # Calculate delivery charges (non-intraday portion)
+        delivery_quantity = abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]
+        delivery_charges = delivery_quantity * delivery_rate * row[Raw_constants.PRICE]
+        
+        # Calculate intraday charges (only for SELL transactions)
+        if row[TransDetails_constants.TRANSACTION_TYPE] == config.SELL:
+            intraday_charges = row[TransDetails_constants.INTRADAY_COUNT] * intraday_rate * row[Raw_constants.PRICE]
+        
+        return intraday_charges + delivery_charges 
+    except Exception as e:
+        logger.error(f"Error calculating STT for {participant_name}: {e}")
+        raise
+
+def calculate_transaction_charges(row, participant_name: str = "zerodha"):
+    """Calculate SEBI transaction charges with participant-specific rates"""
     try:
         net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        if row[TransDetails_constants.TRANSACTION_TYPE] == config.BUY:
-            return abs(net_amount * 0.0005)
+        rate = participant_config_manager.get_transaction_charges_rate(participant_name)
+        return abs(net_amount * rate)
+    except Exception as e:
+        logger.error(f"Error calculating transaction charges for {participant_name}: {e}")
+        raise
+
+def calculate_brokerage(row, participant_name: str = "zerodha"):
+    """Calculate brokerage charges with participant-specific rates"""
+    try:
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        brokerage_config = participant_config_manager.get_brokerage_rate(participant_name)
+        
+        if brokerage_config.get("type") == "percentage":
+            rate = brokerage_config.get("rate", 0.0005)
+            max_amount = brokerage_config.get("max_amount", 20.0)
+            
+            # Calculate percentage-based brokerage with maximum cap
+            brokerage = abs(net_amount * rate)
+            return min(brokerage, max_amount)
         else:
-            return abs(net_amount * 0.0005)
+            # Fixed brokerage
+            return brokerage_config.get("fixed_amount", 20.0)
+            
     except Exception as e:
-        logger.error(f"Error calculating STT: {e}")
-        return 0
+        logger.error(f"Error calculating brokerage for {participant_name}: {e}")
+        raise
 
-def calculate_transaction_charges(row):
-    """Calculate SEBI transaction charges"""
+def calculate_stamp_duty(row, participant_name: str = "zerodha"):
+    """Calculate stamp duty with participant-specific rates"""
     try:
         net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        return abs(net_amount * 0.000001)
+        rate = participant_config_manager.get_stamp_duty_rate(participant_name)
+        return abs(net_amount * rate)
     except Exception as e:
-        logger.error(f"Error calculating transaction charges: {e}")
-        return 0
+        logger.error(f"Error calculating stamp duty for {participant_name}: {e}")
+        raise
 
-def calculate_brokerage(row):
-    """Calculate brokerage charges"""
+def calculate_dp_charges(row, participant_name: str = "zerodha"):
+    """Calculate DP charges with participant-specific rates"""
     try:
-        # Simple brokerage calculation - can be customized based on broker
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        return abs(net_amount * 0.0005)
-    except Exception as e:
-        logger.error(f"Error calculating brokerage: {e}")
-        return 0
-
-def calculate_stamp_duty(row):
-    """Calculate stamp duty"""
-    try:
-        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
-        return abs(net_amount * 0.00015)
-    except Exception as e:
-        logger.error(f"Error calculating stamp duty: {e}")
-        return 0
-
-def calculate_dp_charges(row, dp_data=None):
-    """Calculate DP charges"""
-    try:
-        # Default DP charges - can be customized
         quantity = DataProcessor.safe_numeric(row[TransDetails_constants.QUANTITY])
-        return 13.5 if quantity > 0 else 0
+        dp_charges = participant_config_manager.get_dp_charges(participant_name)
+        return dp_charges if quantity > 0 else 0
     except Exception as e:
-        logger.error(f"Error calculating DP charges: {e}")
-        return 0
+        logger.error(f"Error calculating DP charges for {participant_name}: {e}")
+        raise
+
+def calculate_exchange_transaction_charges(row, participant_name: str = "zerodha"):
+    """Calculate exchange transaction charges with participant-specific rates"""
+    try:
+        net_amount = DataProcessor.safe_numeric(row[TransDetails_constants.NET_AMOUNT])
+        rate = participant_config_manager.get_exchange_transaction_charges_rate(participant_name)
+        return abs(net_amount * rate)
+    except Exception as e:
+        logger.error(f"Error calculating exchange transaction charges for {participant_name}: {e}")
+        raise
+
+def calculate_gst(row, participant_name: str = "zerodha"):
+    """Calculate GST with participant-specific rates"""
+    try:
+        # GST is calculated on brokerage + transaction charges + exchange charges
+        brokerage = calculate_brokerage(row, participant_name)
+        transaction_charges = calculate_transaction_charges(row, participant_name)
+        exchange_charges = calculate_exchange_transaction_charges(row, participant_name)
+        
+        gst_rate = participant_config_manager.get_gst_rate(participant_name)
+        return abs(gst_rate * (brokerage + transaction_charges + exchange_charges))
+    except Exception as e:
+        logger.error(f"Error calculating GST for {participant_name}: {e}")
+        raise
 
 def calculate_average_cost_of_sold_shares(info_map):
     """Calculate average cost of sold shares"""

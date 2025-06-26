@@ -1,4 +1,4 @@
-import logging
+from utils.logging_config import setup_logging
 import pika
 import json
 
@@ -10,7 +10,7 @@ from stock_portfolio_shared.utils.excel_manager import ExcelManager
 import os
 import pandas as pd
 from stock_portfolio_shared.utils.data_processor import DataProcessor
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 class DataService:
     """Service class for handling data processing and upload operations"""

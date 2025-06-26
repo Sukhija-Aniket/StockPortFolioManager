@@ -1,0 +1,53 @@
+{
+  "zerodha": {
+    "name": "Zerodha",
+    "stt_rates": {
+      "delivery": 0.001,
+      "intraday": 0.00025
+    },
+    "transaction_charges": 0.000001,
+    "brokerage": {
+      "type": "percentage",
+      "rate": 0.0005,
+      "max_amount": 20.0
+    },
+    "stamp_duty": 0.00015,
+    "dp_charges": 13.5,
+    "gst_rate": 0.18,
+    "exchange_transaction_charges": 0.000001
+  },
+  "grow": {
+    "name": "Groww",
+    "stt_rates": {
+      "delivery": 0.001,
+      "intraday": 0.00025
+    },
+    "transaction_charges": 0.000001,
+    "brokerage": {
+      "type": "percentage",
+      "rate": 0.0003,
+      "max_amount": 15.0
+    },
+    "stamp_duty": 0.00015,
+    "dp_charges": 13.5,
+    "gst_rate": 0.18,
+    "exchange_transaction_charges": 0.000001
+  },
+  "icici": {
+    "name": "ICICI Direct",
+    "stt_rates": {
+      "delivery": 0.001,
+      "intraday": 0.00025
+    },
+    "transaction_charges": 0.000001,
+    "brokerage": {
+      "type": "percentage",
+      "rate": 0.0055,
+      "max_amount": 55.0
+    },
+    "stamp_duty": 0.00015,
+    "dp_charges": 13.5,
+    "gst_rate": 0.18,
+    "exchange_transaction_charges": 0.000001
+  }
+} 

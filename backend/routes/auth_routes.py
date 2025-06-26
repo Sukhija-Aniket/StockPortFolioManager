@@ -3,9 +3,9 @@ from services.google_service import GoogleService
 from services.user_service import UserService
 from config import Config
 from stock_portfolio_shared.utils.sheet_manager import SheetsManager
-import logging
+from utils.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 google_service = GoogleService()
