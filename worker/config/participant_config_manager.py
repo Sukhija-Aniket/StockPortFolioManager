@@ -91,10 +91,13 @@ class ParticipantConfigManager:
         config = self.get_participant_config(participant_name)
         return config["exchange_transaction_charges"][exchange.upper()]
     
-    def get_stamp_duty_rate(self, participant_name: str) -> float:
+    def get_stamp_duty_rate(self, participant_name: str, is_intraday: bool = False) -> float:
         """Get stamp duty rate for a participant"""
         config = self.get_participant_config(participant_name)
-        return config["stamp_duty"]
+        if is_intraday:
+            return config["stamp_duty"]["intraday"]
+        else:
+            return config["stamp_duty"]["delivery"]
     
     def get_dp_charges(self, participant_name: str) -> float:
         """Get DP charges for a participant"""

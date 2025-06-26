@@ -89,7 +89,7 @@ def calculate_stamp_duty(row, participant_name: str = "zerodha"):
 def calculate_dp_charges(row, dp_data, participant_name: str = "zerodha"):
     """Calculate DP charges with participant-specific rates"""
     try:
-        if row[TransDetails_constants.Transaction_type] == config.SELL and (abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]) > 0:
+        if row[TransDetails_constants.TRANSACTION_TYPE] == config.SELL and (abs(row[Raw_constants.QUANTITY]) - row[TransDetails_constants.INTRADAY_COUNT]) > 0:
         
             # Only apply DP charges for delivery transactions (non-intraday)
             name = row[Raw_constants.NAME]
