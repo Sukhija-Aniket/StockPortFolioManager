@@ -3,8 +3,6 @@ import {
   Button, 
   Container, 
   Form, 
-  Row, 
-  Col, 
   Table, 
   Card, 
   Badge, 
@@ -16,11 +14,10 @@ import {
   Dropdown
 } from 'react-bootstrap';
 import Select from 'react-select';
-import axios from 'axios';
+import { apiGet, apiPost, apiDelete, apiClient } from './utils/apiUtils';
 import FileUploader from './components/fileUploader';
 
 const App = () => {
-  const REACT_APP_BACKEND_SERVICE = process.env.REACT_APP_BACKEND_SERVICE;
   const [user, setUser] = useState(null);
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [newSpreadsheetTitle, setNewSpreadsheetTitle] = useState('');
@@ -143,9 +140,9 @@ const App = () => {
   const fetchSpreadsheets = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/`, { withCredentials: true });
-      console.log("Spreadsheets: ", res);
-      setSpreadsheets(res.data);
+      const data = await apiGet('/spreadsheets/');
+      console.log("Spreadsheets: ", data);
+      setSpreadsheets(data);
     } catch (error) {
       console.error('Error fetching spreadsheets:', error);
       setAlertMessage({ type: 'danger', text: 'Failed to fetch spreadsheets' });
@@ -157,9 +154,9 @@ const App = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/user`, { withCredentials: true });
-        console.log("Response: ", res.data);
-        setUser(res.data);
+        const data = await apiGet('/auth/user');
+        console.log("Response: ", data);
+        setUser(data);
         fetchSpreadsheets();
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -176,15 +173,9 @@ const App = () => {
   const handleSyncData = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/data/sync`, {
+      const data = await apiPost('/data/sync', {
         'spreadsheets': spreadsheets
-      }, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
       });
-      const data = await res.data;
       console.log(data);
       setAlertMessage({ type: 'success', text: 'Data synced successfully!' });
     } catch (error) {
@@ -198,20 +189,21 @@ const App = () => {
   const handleCreateSpreadsheet = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/`, {
+      const metadata = selectedParticipant ? { 
+        participant_name: selectedParticipant.value, 
+        created_at: new Date().toISOString(), 
+        account_type: 'demat' 
+      } : {};
+      const data = await apiPost('/spreadsheets/', {
         title: newSpreadsheetTitle,
-        metadata: {
-          participant_name: selectedParticipant.value,
-          created_at: new Date().toISOString(),
-          account_type: 'demat'
-        }
-      }, { withCredentials: true });
-      console.log('Created spreadsheet:', res.data);
-      fetchSpreadsheets();
+        metadata: metadata
+      });
+      console.log("Created spreadsheet: ", data);
+      setAlertMessage({ type: 'success', text: 'Spreadsheet created successfully!' });
+      setShowCreateModal(false);
       setNewSpreadsheetTitle('');
       setSelectedParticipant(null);
-      setShowCreateModal(false);
-      setAlertMessage({ type: 'success', text: 'Spreadsheet created successfully!' });
+      fetchSpreadsheets();
     } catch (error) {
       console.error('Error creating spreadsheet:', error);
       setAlertMessage({ type: 'danger', text: 'Failed to create spreadsheet' });
@@ -226,31 +218,25 @@ const App = () => {
 
   const handleDeleteClick = async (spreadsheet_url) => {
     if (window.confirm('Are you sure you want to delete this spreadsheet?')) {
+      setLoading(true);
       try {
-        console.log("Deleting a spreadsheet with spreadsheetId:", spreadsheet_url);
-        const spreadsheet_id = spreadsheet_url.split('/d/')[1]?.split('/')[0];
-        if (!spreadsheet_id) {
-          console.error('Invalid spreadsheet URL');
-          return;
-        }
-        
-        const res = await axios.delete(`http://${REACT_APP_BACKEND_SERVICE}/spreadsheets/${spreadsheet_id}`, { 
-          withCredentials: true 
-        });
-        console.log('Spreadsheet deleted successfully:', res.data);
-        fetchSpreadsheets();
+        const spreadsheetId = spreadsheet_url.split('/d/')[1].split('/')[0];
+        await apiDelete(`/spreadsheets/${spreadsheetId}`);
+        console.log("Deleted spreadsheet: ", spreadsheetId);
         setAlertMessage({ type: 'success', text: 'Spreadsheet deleted successfully!' });
-      } catch(error) {
+        fetchSpreadsheets();
+      } catch (error) {
         console.error('Error deleting spreadsheet:', error);
         setAlertMessage({ type: 'danger', text: 'Failed to delete spreadsheet' });
+      } finally {
+        setLoading(false);
       }
     }
   };
-  
+
   const handleSignOut = async () => {
     try {
-      await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/logout`, { withCredentials: true });
-      console.log("Clearing local storage and session storage");
+      await apiGet('/auth/logout');
       localStorage.clear();
       sessionStorage.clear();
       setUser(null);
@@ -258,33 +244,33 @@ const App = () => {
       window.location.reload();
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even if logout fails, clear local state and redirect
+      setUser(null);
+      setSpreadsheets([]);
+      window.location.href = '/login';
     }
   };
 
   const handleDebugSession = async () => {
     try {
-      const res = await axios.get(`http://${REACT_APP_BACKEND_SERVICE}/auth/debug-session`, { 
-        withCredentials: true 
-      });
-      console.log('Debug session response:', res.data);
+      const data = await apiGet('/auth/debug');
+      console.log("Debug session data: ", data);
+      alert(JSON.stringify(data, null, 2));
     } catch (error) {
       console.error('Error debugging session:', error);
+      alert('Error debugging session: ' + error.message);
     }
   };
 
   const getParticipantLabel = (participantValue) => {
-    const participant = participantOptions.find(p => p.value === participantValue);
-    return participant ? participant.label : 'Unknown';
+    const option = participantOptions.find(opt => opt.value === participantValue);
+    return option ? option.label : participantValue;
   };
 
   const getParticipantIcon = (participantValue) => {
-    const participant = participantOptions.find(p => p.value === participantValue);
-    return participant ? participant.icon : '❓';
+    const option = participantOptions.find(opt => opt.value === participantValue);
+    return option ? option.icon : '🏦';
   };
-
-  if (!user) {
-    console.log("backend service is:", REACT_APP_BACKEND_SERVICE);
-  }
 
   return (
     <div className="App">
@@ -457,7 +443,7 @@ const App = () => {
                 <Button 
                   variant="primary" 
                   size="lg" 
-                  href={`http://${REACT_APP_BACKEND_SERVICE}/auth/authorize`}
+                  href={`${apiClient.defaults.baseURL}/auth/authorize`}
                   className="w-100"
                 >
                   🔐 Login with Google
