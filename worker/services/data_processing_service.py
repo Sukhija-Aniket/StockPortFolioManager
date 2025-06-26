@@ -400,6 +400,7 @@ class DataProcessingService:
                     intraMap[name] = {}
                 if date not in infoMap[name]:
                     infoMap[name][date] = {}
+                if get_financial_year(date) not in rowData[name]:
                     rowData[name][get_financial_year(date)] = self.get_taxation_row()
                     # rowData[name][Taxation_constants.DATE] = max(rowData[name][Taxation_constants.DATE], date)
                 if transaction_type not in infoMap[name][date]:
@@ -542,7 +543,7 @@ class DataProcessingService:
                         Taxation_constants.INTRADAY_INCOME: details[Taxation_constants.INTRADAY_INCOME],
                         Taxation_constants.TOTAL_GAINS: details[Taxation_constants.LTCG] + details[Taxation_constants.STCG] + details[Taxation_constants.INTRADAY_INCOME]
                     })
-                df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
+                    df = pd.concat([df, new_row.to_frame().T], ignore_index=True) 
             return convert_dtypes(df) 
             
         except Exception as e:
