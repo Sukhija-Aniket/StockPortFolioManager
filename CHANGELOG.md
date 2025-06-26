@@ -1,3 +1,15 @@
+# v0.0.14 (Thu Jun 26 2025)
+
+#### ⚠️ Pushed to `release`
+
+- fix: add __init__.py files to models and utils to make them proper packages (aniket_sukhija@intuit.com)
+
+#### Authors: 1
+
+- asukhija (aniket_sukhija@intuit.com)
+
+---
+
 # v0.0.13 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
