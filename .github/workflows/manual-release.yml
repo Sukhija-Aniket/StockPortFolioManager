@@ -26,6 +26,17 @@ on:
         required: false
         type: string
 
+# Allow the workflow to bypass branch protection rules
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
+# Prevent concurrent runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -139,7 +150,7 @@ jobs:
           body: |
             ## Manual Release ${{ steps.version.outputs.next_version }}
             
-            This is a manual release PR.
+            This is a manual release PR that will trigger the auto release workflow when merged.
             
             **Source Branch:** ${{ github.event.inputs.source_branch }}
             **Version Bump:** ${{ github.event.inputs.version_bump }}
@@ -155,11 +166,18 @@ jobs:
             
             ---
             *This PR was created automatically by the manual release workflow.*
+            *When merged, it will trigger the auto release workflow to create the GitHub release.*
           delete-branch: true
           commit-message: "Manual Release ${{ steps.version.outputs.next_version }}"
           title-prefix: "Manual Release: "
 
-      - name: Create GitHub Release
+      - name: Wait for PR to be created
+        run: |
+          echo "Waiting for PR to be created..."
+          sleep 10
+
+      - name: Create GitHub Release (if PR creation failed)
+        if: failure()
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -182,6 +200,6 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
             
             ---
-            *This release was created manually.*
+            *This release was created manually (PR creation failed).*
           draft: false
           prerelease: false 
