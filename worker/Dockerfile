@@ -14,7 +14,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 # Install shared package from git repository with specific version tag
-RUN pip install --force-reinstall git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@v0.1.5#subdirectory=shared
+RUN pip install --force-reinstall git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@v0.1.12#subdirectory=shared
 
 # Install other dependencies
 RUN pip install --no-cache-dir -r requirements.txt
