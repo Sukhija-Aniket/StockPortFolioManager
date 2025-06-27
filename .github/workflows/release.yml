@@ -1,6 +1,9 @@
 name: Auto Release
 
 on:
+  push:
+    branches:
+      - release
   pull_request:
     branches:
       - release
@@ -29,8 +32,11 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Only run on PR merge OR on push that's not a [skip ci] commit
+    # This prevents duplicate runs while allowing the version bump commit to be pushed
     if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/release' && !contains(github.event.head_commit.message, '[skip ci]'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
