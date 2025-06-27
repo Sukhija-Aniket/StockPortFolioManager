@@ -1,9 +1,6 @@
 name: Auto Release
 
 on:
-  push:
-    branches:
-      - release
   pull_request:
     branches:
       - release
@@ -27,7 +24,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    # Only run on PR merge (removed push condition since we removed push trigger)
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,20 +48,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create release branch from current state
-        run: |
-          git checkout -b auto-release-${{ github.run_id }}
-          git reset --hard HEAD
-
-      - name: Ensure clean working directory
-        run: |
-          git status
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Working directory is not clean. Committing remaining changes..."
-            git add .
-            git commit -m "Auto-commit remaining changes before release" || true
-          fi
 
       - name: Calculate next version
         id: version
@@ -123,42 +107,10 @@ jobs:
           sed -i "s/version=\"[^\"]*\"/version=\"$VERSION_WITHOUT_V\"/" shared/setup.py
           echo "Updated setup.py to version $VERSION_WITHOUT_V"
 
-      - name: Create version commit
+      - name: Create version commit with [skip ci]
         run: |
           git add shared/setup.py
           git commit -m "Bump version to ${{ steps.version.outputs.next_version }} [skip ci]"
-
-      - name: Push release branch
-        run: |
-          git push origin auto-release-${{ github.run_id }}
-
-      - name: Create Pull Request to release branch
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          base: release
-          branch: auto-release-${{ github.run_id }}
-          title: "Auto Release ${{ steps.version.outputs.next_version }}"
-          body: |
-            ## Auto Release ${{ steps.version.outputs.next_version }}
-            
-            This is an automated release PR created by the auto-release workflow.
-            
-            **Trigger:** ${{ github.event_name }}
-            **Source:** ${{ github.ref }}
-            
-            ### Changes
-            - Version bump to ${{ steps.version.outputs.next_version }}
-            - Auto-generated release notes
-            
-            ### Changelog
-            ${{ steps.changelog.outputs.changelog }}
-            
-            ---
-            *This PR was created automatically by the auto-release workflow.*
-          delete-branch: true
-          commit-message: "Auto Release ${{ steps.version.outputs.next_version }}"
-          title-prefix: "Auto Release: "
 
       - name: Create GitHub Release
         uses: actions/create-release@v1
@@ -182,4 +134,11 @@ jobs:
             ---
             *This release was created automatically.*
           draft: false
-          prerelease: false 
+          prerelease: false
+
+      - name: Push version bump to release branch
+        run: |
+          # Push the version bump commit directly to release branch
+          # This commit has [skip ci] so it won't trigger another workflow run
+          # Repository admin role in bypass list allows this push
+          git push origin HEAD:release 
