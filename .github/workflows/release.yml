@@ -71,8 +71,36 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Calculate the next version without publishing
-          NEXT_VERSION=$(auto version --dry-run)
+          # Get the current version from setup.py
+          CURRENT_VERSION=$(grep 'version=' shared/setup.py | sed "s/.*version=\"\(.*\)\".*/\1/")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Get the bump type from auto
+          BUMP_TYPE=$(auto version)
+          echo "Bump type: $BUMP_TYPE"
+          
+          # Calculate next version
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+          
+          case "$BUMP_TYPE" in
+            "patch")
+              PATCH=$((10#$PATCH + 1))
+              ;;
+            "minor")
+              MINOR=$((10#$MINOR + 1))
+              PATCH="0"
+              ;;
+            "major")
+              MAJOR=$((10#$MAJOR + 1))
+              MINOR="0"
+              PATCH="0"
+              ;;
+          esac
+          
+          NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "Next version: $NEXT_VERSION"
 
@@ -82,17 +110,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Generate changelog without publishing
-          CHANGELOG=$(auto changelog --dry-run)
+          # Generate changelog
+          CHANGELOG=$(auto changelog)
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Update version in setup.py
+        run: |
+          # Update version in setup.py (remove the 'v' prefix)
+          VERSION_WITHOUT_V="${NEXT_VERSION#v}"
+          sed -i "s/version=\"[^\"]*\"/version=\"$VERSION_WITHOUT_V\"/" shared/setup.py
+          echo "Updated setup.py to version $VERSION_WITHOUT_V"
+
       - name: Create version commit
         run: |
-          # Create the version commit manually
-          auto version --dry-run
-          git add .
+          git add shared/setup.py
           git commit -m "Bump version to ${{ steps.version.outputs.next_version }} [skip ci]"
 
       - name: Push release branch
