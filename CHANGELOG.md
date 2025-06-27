@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2025-06-27
+
+### Changes
+- d25612e Merge pull request #18 from Sukhija-Aniket/v2
+- abb7976 feat: add CHANGELOG.md generation to release workflows
+- b059f9e Bump version to v0.1.9 [skip ci]
+- 1fd55a8 Merge pull request #17 from Sukhija-Aniket/v2
+- fa3c495 feat: hope it works
+- 57bf66b Merge pull request #16 from Sukhija-Aniket/v2
+- ff7c995 fix: add comprehensive error handling to version calculation steps
+- 0ae06fd Merge pull request #15 from Sukhija-Aniket/v2
+- 60b6070 fix: improve version update logic with better error handling and debugging
+- 6896776 Bump version to v0.1.8 [skip ci]
+- 6e7c04b Merge pull request #14 from Sukhija-Aniket/v2
+- d4b4b39 feat: update version before release
+- 6f6860f feat: final test
+- 76ec439 Merge pull request #13 from Sukhija-Aniket/v2
+- 2edfb68 feat: test
+
+
 ## [0.1.8] - 2025-06-27
 
 ### Changes
