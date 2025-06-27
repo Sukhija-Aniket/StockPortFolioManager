@@ -66,19 +66,57 @@ jobs:
             git commit -m "Auto-commit remaining changes before release" || true
           fi
 
-      - name: Run auto shipit (no push)
-        id: auto
+      - name: Calculate next version
+        id: version
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Run auto shipit without pushing
-          auto shipit --no-push
-          
-          # Capture the new version
-          NEW_VERSION=$(auto version)
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
+          # Calculate the next version based on bump type
+          case "${{ github.event.inputs.version_bump }}" in
+            "patch")
+              NEXT_VERSION=$(auto version --dry-run)
+              ;;
+            "minor")
+              # For minor bump, we need to manually calculate
+              CURRENT_VERSION=$(auto version)
+              IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+              MAJOR="${VERSION_PARTS[0]}"
+              MINOR=$((10#${VERSION_PARTS[1]} + 1))
+              PATCH="0"
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+              ;;
+            "major")
+              # For major bump, we need to manually calculate
+              CURRENT_VERSION=$(auto version)
+              IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+              MAJOR=$((10#${VERSION_PARTS[0]} + 1))
+              MINOR="0"
+              PATCH="0"
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+              ;;
+          esac
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Generate changelog without publishing
+          CHANGELOG=$(auto changelog --dry-run)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create version commit
+        run: |
+          # Create the version commit manually
+          auto version --dry-run
+          git add .
+          git commit -m "Bump version to ${{ steps.version.outputs.next_version }} [skip ci]"
 
       - name: Push release branch
         run: |
@@ -90,9 +128,9 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           base: release
           branch: manual-release-${{ github.run_id }}
-          title: "Manual Release ${{ steps.auto.outputs.new_version }}"
+          title: "Manual Release ${{ steps.version.outputs.next_version }}"
           body: |
-            ## Manual Release ${{ steps.auto.outputs.new_version }}
+            ## Manual Release ${{ steps.version.outputs.next_version }}
             
             This is a manual release PR.
             
@@ -102,13 +140,16 @@ jobs:
             ${{ github.event.inputs.release_notes }}
             
             ### Changes
-            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Version bump to ${{ steps.version.outputs.next_version }}
             - Auto-generated release notes
+            
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
             
             ---
             *This PR was created automatically by the manual release workflow.*
           delete-branch: true
-          commit-message: "Manual Release ${{ steps.auto.outputs.new_version }}"
+          commit-message: "Manual Release ${{ steps.version.outputs.next_version }}"
           title-prefix: "Manual Release: "
 
       - name: Create GitHub Release
@@ -116,10 +157,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
-          tag_name: ${{ steps.auto.outputs.new_version }}
-          release_name: Release ${{ steps.auto.outputs.new_version }}
+          tag_name: ${{ steps.version.outputs.next_version }}
+          release_name: Release ${{ steps.version.outputs.next_version }}
           body: |
-            ## Manual Release ${{ steps.auto.outputs.new_version }}
+            ## Manual Release ${{ steps.version.outputs.next_version }}
             
             **Source Branch:** ${{ github.event.inputs.source_branch }}
             **Version Bump:** ${{ github.event.inputs.version_bump }}
@@ -127,8 +168,11 @@ jobs:
             ${{ github.event.inputs.release_notes }}
             
             ### Changes
-            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Version bump to ${{ steps.version.outputs.next_version }}
             - Auto-generated release notes
+            
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
             
             ---
             *This release was created manually.*
