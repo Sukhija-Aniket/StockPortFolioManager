@@ -59,15 +59,30 @@ jobs:
           CURRENT_VERSION=$(grep 'version=' shared/setup.py | sed "s/.*version=\"\(.*\)\".*/\1/")
           echo "Current version: $CURRENT_VERSION"
           
+          # Validate current version is not empty
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "ERROR: Current version is empty!"
+            exit 1
+          fi
+          
           # Get the bump type from auto
+          echo "Running auto version to determine bump type..."
           BUMP_TYPE=$(auto version)
-          echo "Bump type: $BUMP_TYPE"
+          echo "Bump type: '$BUMP_TYPE'"
+          
+          # Validate bump type
+          if [ -z "$BUMP_TYPE" ]; then
+            echo "ERROR: BUMP_TYPE is empty! Auto version command failed."
+            exit 1
+          fi
           
           # Calculate next version
           IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
           MAJOR="${VERSION_PARTS[0]}"
           MINOR="${VERSION_PARTS[1]}"
           PATCH="${VERSION_PARTS[2]}"
+          
+          echo "Version parts - Major: $MAJOR, Minor: $MINOR, Patch: $PATCH"
           
           case "$BUMP_TYPE" in
             "patch")
@@ -82,9 +97,21 @@ jobs:
               MINOR="0"
               PATCH="0"
               ;;
+            *)
+              echo "ERROR: Unknown bump type: '$BUMP_TYPE'"
+              exit 1
+              ;;
           esac
           
           NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Calculated next version: '$NEXT_VERSION'"
+          
+          # Validate next version
+          if [ -z "$NEXT_VERSION" ]; then
+            echo "ERROR: NEXT_VERSION is empty after calculation!"
+            exit 1
+          fi
+          
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "Next version: $NEXT_VERSION"
 
