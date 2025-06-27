@@ -147,8 +147,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Generate a simple changelog based on recent commits
-          CHANGELOG=$(git log --oneline --since="1 week ago" | head -10 | sed 's/^/- /')
+          # Generate a proper changelog based on recent commits
+          CHANGELOG=$(git log --oneline --since="1 week ago" | head -15 | sed 's/^/- /')
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -182,9 +182,74 @@ jobs:
           
           echo "Updated setup.py to version $VERSION_WITHOUT_V"
 
+      - name: Update CHANGELOG.md
+        run: |
+          # Get the next version and changelog
+          NEXT_VERSION="${{ steps.version.outputs.next_version }}"
+          VERSION_WITHOUT_V="${NEXT_VERSION#v}"
+          CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+          
+          # Create or update CHANGELOG.md
+          if [ ! -f "CHANGELOG.md" ]; then
+            # Create new CHANGELOG.md
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> CHANGELOG.md
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "## [Unreleased]" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "## [$VERSION_WITHOUT_V] - $(date +%Y-%m-%d)" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Added" >> CHANGELOG.md
+            echo "- Initial release" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Changed" >> CHANGELOG.md
+            echo "- N/A" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Deprecated" >> CHANGELOG.md
+            echo "- N/A" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Removed" >> CHANGELOG.md
+            echo "- N/A" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Fixed" >> CHANGELOG.md
+            echo "- N/A" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Security" >> CHANGELOG.md
+            echo "- N/A" >> CHANGELOG.md
+          else
+            # Update existing CHANGELOG.md
+            # Create temporary file with new version entry
+            echo "# Changelog" > temp_changelog.md
+            echo "" >> temp_changelog.md
+            echo "All notable changes to this project will be documented in this file." >> temp_changelog.md
+            echo "" >> temp_changelog.md
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> temp_changelog.md
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> temp_changelog.md
+            echo "" >> temp_changelog.md
+            echo "## [Unreleased]" >> temp_changelog.md
+            echo "" >> temp_changelog.md
+            echo "## [$VERSION_WITHOUT_V] - $(date +%Y-%m-%d)" >> temp_changelog.md
+            echo "" >> temp_changelog.md
+            echo "### Changes" >> temp_changelog.md
+            echo "$CHANGELOG" >> temp_changelog.md
+            echo "" >> temp_changelog.md
+            
+            # Append the rest of the existing changelog (skip the header and unreleased section)
+            tail -n +$(($(grep -n "## \[Unreleased\]" CHANGELOG.md | cut -d: -f1) + 1)) CHANGELOG.md >> temp_changelog.md
+            
+            # Replace the original file
+            mv temp_changelog.md CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md for version $VERSION_WITHOUT_V"
+
       - name: Create version commit
         run: |
-          git add shared/setup.py
+          git add shared/setup.py CHANGELOG.md
           git commit -m "Bump version to ${{ steps.version.outputs.next_version }} [skip ci]"
 
       - name: Push release branch
