@@ -104,7 +104,25 @@ jobs:
         run: |
           # Update version in setup.py (remove the 'v' prefix)
           VERSION_WITHOUT_V="${NEXT_VERSION#v}"
+          echo "Updating setup.py from current version to: $VERSION_WITHOUT_V"
+          
+          # Debug: show current content
+          echo "Current setup.py version line:"
+          grep 'version=' shared/setup.py
+          
+          # Check if VERSION_WITHOUT_V is not empty
+          if [ -z "$VERSION_WITHOUT_V" ]; then
+            echo "ERROR: VERSION_WITHOUT_V is empty!"
+            exit 1
+          fi
+          
+          # Update the version
           sed -i "s/version=\"[^\"]*\"/version=\"$VERSION_WITHOUT_V\"/" shared/setup.py
+          
+          # Verify the update
+          echo "Updated setup.py version line:"
+          grep 'version=' shared/setup.py
+          
           echo "Updated setup.py to version $VERSION_WITHOUT_V"
 
       - name: Create version commit with [skip ci]
