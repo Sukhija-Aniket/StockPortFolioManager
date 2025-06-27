@@ -21,11 +21,18 @@ permissions:
   pull-requests: write
   statuses: write
 
+# Prevent concurrent runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Only run on PR merge (removed push condition since we removed push trigger)
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    # Only run on PR merge or direct push to release, not on both
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/release' && !contains(github.event.head_commit.message, '[skip ci]'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
