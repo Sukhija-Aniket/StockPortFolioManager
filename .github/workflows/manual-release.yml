@@ -52,11 +52,10 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Switch to release branch
+      - name: Create release branch from source
         run: |
-          git checkout -b release
+          git checkout -b release-${{ github.run_id }}
           git reset --hard origin/${{ github.event.inputs.source_branch }}
-          git push origin release --force
 
       - name: Ensure clean working directory
         run: |
@@ -65,15 +64,45 @@ jobs:
             echo "Working directory is not clean. Committing remaining changes..."
             git add .
             git commit -m "Auto-commit remaining changes before release" || true
-            git push origin release
           fi
 
-      - name: Run auto shipit
+      - name: Run auto shipit (no push)
         id: auto
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: auto shipit
+        run: auto shipit --no-push
+
+      - name: Push release branch
+        run: |
+          git push origin release-${{ github.run_id }}
+
+      - name: Create Pull Request to release branch
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          base: release
+          branch: release-${{ github.run_id }}
+          title: "Release ${{ steps.auto.outputs.new_release }}"
+          body: |
+            ## Release ${{ steps.auto.outputs.new_release }}
+            
+            This is an automated release PR.
+            
+            **Source Branch:** ${{ github.event.inputs.source_branch }}
+            **Version Bump:** ${{ github.event.inputs.version_bump }}
+            
+            ${{ github.event.inputs.release_notes }}
+            
+            ### Changes
+            - Version bump to ${{ steps.auto.outputs.new_release }}
+            - Auto-generated release notes
+            
+            ---
+            *This PR was created automatically by the release workflow.*
+          delete-branch: true
+          commit-message: "Release ${{ steps.auto.outputs.new_release }}"
+          title-prefix: "Release: "
 
       - name: Create GitHub Release
         if: github.event.inputs.release_notes != ''
