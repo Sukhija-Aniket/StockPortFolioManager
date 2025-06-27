@@ -51,6 +51,11 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Create release branch from current state
+        run: |
+          git checkout -b auto-release-${{ github.run_id }}
+          git reset --hard HEAD
+
       - name: Ensure clean working directory
         run: |
           git status
@@ -58,11 +63,68 @@ jobs:
             echo "Working directory is not clean. Committing remaining changes..."
             git add .
             git commit -m "Auto-commit remaining changes before release" || true
-            git push origin release
           fi
 
-      - name: Run auto shipit
+      - name: Run auto shipit (no push)
+        id: auto
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: auto shipit 
+        run: |
+          # Run auto shipit without pushing
+          auto shipit --no-push
+          
+          # Capture the new version
+          NEW_VERSION=$(auto version)
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Push release branch
+        run: |
+          git push origin auto-release-${{ github.run_id }}
+
+      - name: Create Pull Request to release branch
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          base: release
+          branch: auto-release-${{ github.run_id }}
+          title: "Auto Release ${{ steps.auto.outputs.new_version }}"
+          body: |
+            ## Auto Release ${{ steps.auto.outputs.new_version }}
+            
+            This is an automated release PR created by the auto-release workflow.
+            
+            **Trigger:** ${{ github.event_name }}
+            **Source:** ${{ github.ref }}
+            
+            ### Changes
+            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Auto-generated release notes
+            
+            ---
+            *This PR was created automatically by the auto-release workflow.*
+          delete-branch: true
+          commit-message: "Auto Release ${{ steps.auto.outputs.new_version }}"
+          title-prefix: "Auto Release: "
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          tag_name: ${{ steps.auto.outputs.new_version }}
+          release_name: Release ${{ steps.auto.outputs.new_version }}
+          body: |
+            ## Auto Release ${{ steps.auto.outputs.new_version }}
+            
+            This release was created automatically by the auto-release workflow.
+            
+            ### Changes
+            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Auto-generated release notes
+            
+            ---
+            *This release was created automatically.*
+          draft: false
+          prerelease: false 

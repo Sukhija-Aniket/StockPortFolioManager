@@ -54,7 +54,7 @@ jobs:
 
       - name: Create release branch from source
         run: |
-          git checkout -b release-${{ github.run_id }}
+          git checkout -b manual-release-${{ github.run_id }}
           git reset --hard origin/${{ github.event.inputs.source_branch }}
 
       - name: Ensure clean working directory
@@ -71,23 +71,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: auto shipit --no-push
+        run: |
+          # Run auto shipit without pushing
+          auto shipit --no-push
+          
+          # Capture the new version
+          NEW_VERSION=$(auto version)
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
 
       - name: Push release branch
         run: |
-          git push origin release-${{ github.run_id }}
+          git push origin manual-release-${{ github.run_id }}
 
       - name: Create Pull Request to release branch
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GH_TOKEN }}
           base: release
-          branch: release-${{ github.run_id }}
-          title: "Release ${{ steps.auto.outputs.new_release }}"
+          branch: manual-release-${{ github.run_id }}
+          title: "Manual Release ${{ steps.auto.outputs.new_version }}"
           body: |
-            ## Release ${{ steps.auto.outputs.new_release }}
+            ## Manual Release ${{ steps.auto.outputs.new_version }}
             
-            This is an automated release PR.
+            This is a manual release PR.
             
             **Source Branch:** ${{ github.event.inputs.source_branch }}
             **Version Bump:** ${{ github.event.inputs.version_bump }}
@@ -95,23 +102,35 @@ jobs:
             ${{ github.event.inputs.release_notes }}
             
             ### Changes
-            - Version bump to ${{ steps.auto.outputs.new_release }}
+            - Version bump to ${{ steps.auto.outputs.new_version }}
             - Auto-generated release notes
             
             ---
-            *This PR was created automatically by the release workflow.*
+            *This PR was created automatically by the manual release workflow.*
           delete-branch: true
-          commit-message: "Release ${{ steps.auto.outputs.new_release }}"
-          title-prefix: "Release: "
+          commit-message: "Manual Release ${{ steps.auto.outputs.new_version }}"
+          title-prefix: "Manual Release: "
 
       - name: Create GitHub Release
-        if: github.event.inputs.release_notes != ''
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
-          tag_name: ${{ steps.auto.outputs.new_release }}
-          release_name: Release ${{ steps.auto.outputs.new_release }}
-          body: ${{ github.event.inputs.release_notes }}
+          tag_name: ${{ steps.auto.outputs.new_version }}
+          release_name: Release ${{ steps.auto.outputs.new_version }}
+          body: |
+            ## Manual Release ${{ steps.auto.outputs.new_version }}
+            
+            **Source Branch:** ${{ github.event.inputs.source_branch }}
+            **Version Bump:** ${{ github.event.inputs.version_bump }}
+            
+            ${{ github.event.inputs.release_notes }}
+            
+            ### Changes
+            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Auto-generated release notes
+            
+            ---
+            *This release was created manually.*
           draft: false
           prerelease: false 
