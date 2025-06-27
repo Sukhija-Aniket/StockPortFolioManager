@@ -1,3 +1,17 @@
+# v0.0.24 (Fri Jun 27 2025)
+
+#### 🐛 Bug Fix
+
+- feat: fix [#6](https://github.com/Sukhija-Aniket/StockPortFolioManager/pull/6) (aniket_sukhija@intuit.com [@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+- feat: fix frontend add button and login issues [#5](https://github.com/Sukhija-Aniket/StockPortFolioManager/pull/5) (aniket_sukhija@intuit.com [@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+#### Authors: 2
+
+- asukhija (aniket_sukhija@intuit.com)
+- Sukhija-Aniket ([@Sukhija-Aniket](https://github.com/Sukhija-Aniket))
+
+---
+
 # v0.0.23 (Thu Jun 26 2025)
 
 #### ⚠️ Pushed to `release`
