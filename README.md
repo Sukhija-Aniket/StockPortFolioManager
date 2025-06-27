@@ -1,154 +1,241 @@
-# Stock PortFolio Manager
+# Stock Portfolio Manager
 
-Stock Portfolio Manager is a Python application that allows users to manage their stock portfolio by importing data from Excel sheets or Google Sheets. The application provides real-time stock price updates, calculates total gains and losses, and generates reports for profit/loss and taxation purposes.
+A comprehensive stock portfolio management system with real-time data processing, broker-specific calculations, and Google Sheets integration. Built with a modern microservices architecture supporting distributed deployment.
 
-The Stock Portfolio Manager provides the following features:
+## 🚀 Features
 
-1. Import Data: Users can choose to import stock data from local Excel sheets or Google Sheets.
-2. Real-time Stock Prices: The application fetches real-time stock prices using APIs (e.g., Alpha Vantage) to keep the data up-to-date.
-3. Portfolio Analytics: Calculate and display total gains, losses, and other portfolio-related metrics.
-4. Profit/Loss Calculation: Automatically calculate and analyze individual stock profits and losses based on historical data.
-5. Taxation Reports: Generate reports to assist with taxation calculations and record-keeping for stock trades.
-6. Export Data: Users can export portfolio data to Excel or Google Sheets for further analysis or backup purposes.
-7. User-friendly Interface: The application provides an intuitive and easy-to-use interface for seamless navigation.
+### Core Functionality
+- **📊 Portfolio Management**: Import and manage stock data from Excel sheets or Google Sheets
+- **💰 Real-time Analytics**: Calculate profits, losses, and portfolio metrics with live stock prices
+- **🏦 Broker-Specific Calculations**: Support for major Indian brokers (Zerodha, Upstox, etc.) with configurable rates
+- **📈 Advanced Analytics**: 
+  - Share Profit/Loss analysis
+  - Daily Profit/Loss tracking
+  - Taxation reports (LTCG, STCG, Intraday)
+  - FIFO-based cost basis calculations
 
-By combining data from Excel and Google Sheets, the Stock Portfolio Manager enables users to conveniently manage their stock investments in one central place, ensuring accuracy, efficiency, and optimal portfolio performance.
+### Technical Features
+- **🔐 Google OAuth Authentication**: Secure login with Google accounts
+- **🔄 Asynchronous Processing**: Background task processing with RabbitMQ
+- **📱 Modern Web Interface**: React-based responsive frontend
+- **🔧 Microservices Architecture**: Independent frontend, backend, and worker components
+- **🐳 Docker Support**: Easy deployment with Docker Compose
+- **📊 Database Integration**: PostgreSQL for data persistence
 
-Please note that this project name and description are intended for illustrative purposes only. You can modify and expand on these ideas based on your specific requirements and preferences. Good luck with your Stock Portfolio Manager project!
+### Broker Support
+- **Zerodha**: Full support with configurable rates
+- **Groww**: Full support with configurable rates
 
-## Prerequisites
+### Upcoming Brokers
+- **Upstox**: Full support with configurable rates
+- **Angel One**: Full support with configurable rates
+- **ICICI Direct**: Full support with configurable rates
+- **HDFC Securities**: Full support with configurable rates
+- **Kotak Securities**: Full support with configurable rates
+- **Axis Direct**: Full support with configurable rates
+- **SBI Securities**: Full support with configurable rates
+- **5Paisa**: Full support with configurable rates
 
-Before running the project, you need to have the following installed and set up:
 
-1. Python (version 3.X.X or later)
-2. pip (package installer for Python)
-3. Virtual environment (optional but recommended)
+## 🏗️ Architecture
 
-## Installation
-
-1. Clone the repository from GitHub:
-
-```
-git clone https://github.com/your-username/your-repo.git
-```
-
-2. Navigate to the project directory:
-
-```
-cd project-directory
-```
-
-3. Create a virtual environment (optional but recommended):
-
-```
-python -m venv venv
-```
-
-4. Activate the virtual environment (if you created one):
-
-   - On Windows:
-
-   ```
-   venv\Scripts\activate
-   ```
-
-   - On macOS and Linux:
-
-   ```
-   source venv/bin/activate
-   ```
-5. Install project dependencies using pip:
+The system is built with a modular microservices architecture:
 
 ```
-pip install -r requirements.txt
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Frontend  │    │   Backend   │    │   Worker    │
+│   (React)   │◄──►│   (Flask)   │◄──►│   (Async)   │
+└─────────────┘    └─────────────┘    └─────────────┘
+                           │                   │
+                           └───────┬───────────┘
+                                   │
+                           ┌─────────────┐
+                           │  RabbitMQ   │
+                           │ (Message    │
+                           │  Broker)    │
+                           └─────────────┘
 ```
 
-## Configuration
+### Components
+- **Frontend**: React application with modern UI
+- **Backend**: Flask API with Google OAuth integration
+- **Worker**: Asynchronous task processor for data calculations
+- **Shared Library**: Common utilities and models
+- **Database**: PostgreSQL for data persistence
+- **Message Queue**: RabbitMQ for task distribution
 
-To run the project, you need to set up the following configuration files:
+## 🛠️ Prerequisites
 
-1. `.env` file:
+- **Docker & Docker Compose**: For containerized deployment
+- **Node.js 18+**: For frontend development
+- **Python 3.8+**: For backend and worker development
+- **Google Cloud Project**: For OAuth and Google Sheets API access
 
-   Create a `.env` file in the project directory and set any environment-specific variables needed by the project. Make sure not to share sensitive information like API keys in the repository. Example `.env` content:
+## 🚀 Quick Start
 
-   ```
-   STOCK_API_KEY=
-   SPREADSHEET_ID=
-   EXCEL_FILE_NAME=
-   LAST_EXECUTION_DATE_SHEETS= <optional>
-   LAST_EXECUTION_DATE_EXCEL= <optional>
-   ```
-
-   The  optional fields are required if you wish to execute the script only once per Day, in that case uncomment the line `script_already_executed()` and now your script can run at max once per day.
-2. `tradingprojects-apiKey.json` file:
-
-   To access the Google Sheets API and make changes to Google Sheets, you need to authenticate your application. Google offers two authentication methods: OAuth 2.0 and Service Accounts.
-
-   1. OAuth 2.0:
-      OAuth 2.0 is used when you want to access Google Sheets on behalf of a user. It requires user consent and provides an access token that allows your application to make requests to Google Sheets on the user's behalf.
-   2. Service Accounts:
-      Service Accounts are used when you want to access Google Sheets on behalf of your application, not a specific user. Service Accounts provide a JSON file containing credentials that your application uses to authenticate with the Google Sheets API.
-
-   In this project we make use of a Service Account. Here's how you can set up a Service Account and download the required JSON file:
-
-   1. Go to the Google API Console: [https://console.developers.google.com/](https://console.developers.google.com/)
-   2. Create a new project (or use an existing one).
-   3. In the project dashboard, enable the Google Sheets API.
-   4. Navigate to the "Credentials" page from the left sidebar.
-   5. Click on "Create credentials" and select "Service account."
-   6. Fill in the necessary information for the Service Account and click "Create."
-   7. On the next page, assign the "Editor" role to the Service Account (or choose a suitable role that grants access to Google Sheets).
-   8. Click "Continue" and then "Done."
-   9. Find the newly created Service Account in the "Credentials" list and click the "Manage service account" button.
-   10. Click on "Add key" and select "Create new key."
-   11. Choose the JSON key type and click "Create." This will download the JSON file containing your Service Account credentials.
-   12. Save the downloaded JSON file with the name 'tradingprojects-apiKey.json' in your project directory.
-
-   Now, your application can use the 'tradingprojects-apiKey.json' file to authenticate with the Google Sheets API and make changes to Google Sheets on behalf of the Service Account.
-
-## Running the Project
-
-1. Activate the virtual environment (if you created one):
-
-   - On Windows:
-
-      ```
-      venv\Scripts\activate
-      ```
-
-   - On macOS and Linux:
-
-      ```
-      source venv/bin/activate
-      ```
-2. Run the worker service:
-
-   ```
-   python worker/worker.py
-   ```
-3. The worker service will automatically process spreadsheets from the message queue.
-
-## Contributing
-
-If you want to contribute to this project, follow these steps:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix:
-
-```
-git checkout -b feature/your-feature-name
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Sukhija-Aniket/StockPortfolioManager.git
+cd StockPortfolioManager
 ```
 
-3. Make your changes and commit them:
+### 2. Set Up Google OAuth
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Enable Google Sheets API and Google Drive API
+4. Create OAuth 2.0 credentials
+5. Download the credentials JSON file
+6. Place it in `backend/secrets/credentials.json`
 
-```
-git commit -m "Add your commit message here"
+### 3. Configure Environment
+Create `.env` files in each component directory:
+
+**Backend** (`backend/.env`):
+```env
+GOOGLE_CREDENTIALS_FILE=secrets/credentials.json
+FRONTEND_SERVICE=localhost:3000
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/stock_portfolio
 ```
 
-4. Push the changes to your fork:
-
+**Frontend** (`frontend/.env`):
+```env
+REACT_APP_BACKEND_SERVICE=localhost:5000
 ```
-git push origin feature/your-feature-name
+
+### 4. Start the Application
+```bash
+# Start all services
+docker-compose up -d
+
+# Check service status
+docker-compose ps
 ```
 
-5. Create a pull request on the original repository.
+### 5. Access the Application
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000
+- **RabbitMQ Management**: http://localhost:15672
+
+## 📖 Usage Guide
+
+### 1. Authentication
+- Click "Login with Google" on the frontend
+- Grant necessary permissions for Google Sheets access
+- Your session will be maintained securely
+
+### 2. Creating Spreadsheets
+- Click "Create New Spreadsheet"
+- Select your broker from the dropdown
+- The system will create a Google Sheet with proper structure
+
+### 3. Adding Data
+- Upload CSV files with your transaction data
+- Select the target spreadsheet
+- Data will be processed asynchronously with broker-specific calculations
+
+### 4. Syncing Data
+- Click "Sync All Data" to process all spreadsheets
+- Monitor progress in the RabbitMQ management interface
+- Results will be available in your Google Sheets
+
+## 🔧 Configuration
+
+### Broker Configuration
+Broker-specific rates are configured in `worker/config/participant_config.json`:
+
+```json
+{
+  "zerodha": {
+    "brokerage": {
+      "intraday": {"rate": 0.0005, "max_amount": 20.0},
+      "delivery": {"rate": 0.0005, "max_amount": 20.0}
+    },
+    "stt": {"buy": 0.0005, "sell": 0.0005},
+    "gst": 0.18,
+    "dp_charges": 13.5
+  }
+}
+```
+
+### Worker Configuration
+Adjust worker concurrency and timeouts:
+
+```bash
+# Scale workers
+./scale_workers.sh 4
+
+# Environment variables
+WORKER_CONCURRENCY=4
+WORKER_TIMEOUT=300
+```
+
+## 🐳 Docker Deployment
+
+### Production Deployment
+```bash
+# Build and start all services
+docker-compose up -d --build
+
+# Scale workers for production
+./scale_workers.sh 4
+
+# Monitor services
+docker-compose logs -f
+```
+
+### Development Deployment
+```bash
+# Use development configuration
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+## 📊 Monitoring
+
+### Health Checks
+- **Backend**: `GET /health`
+- **Worker**: RabbitMQ connection status
+- **Database**: PostgreSQL readiness
+
+### Logs
+```bash
+# View all logs
+docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f worker
+docker-compose logs -f backend
+```
+
+### RabbitMQ Management
+- **URL**: http://localhost:15672
+- **Username**: `username`
+- **Password**: `password`
+
+## 🔒 Security
+
+- **OAuth 2.0 Authentication**: Secure Google account integration
+- **Session Management**: Secure session handling with Flask
+- **Token Validation**: Automatic token refresh and validation
+- **Environment Variables**: Secure configuration management
+- **Docker Security**: Containerized deployment with proper isolation
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make your changes
+4. Run tests: `docker-compose -f docker-compose.dev.yml up --build`
+5. Commit your changes: `git commit -m 'Add new feature'`
+6. Push to the branch: `git push origin feature/new-feature`
+7. Create a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue on GitHub
+- Check the documentation in the `/docs` folder
+- Review the troubleshooting guide in `DOCKER_SETUP.md`
