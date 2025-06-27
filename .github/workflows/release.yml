@@ -129,6 +129,10 @@ jobs:
 
       - name: Update version in setup.py
         run: |
+          # Get the next version from the previous step
+          NEXT_VERSION="${{ steps.version.outputs.next_version }}"
+          echo "Next version from previous step: '$NEXT_VERSION'"
+          
           # Update version in setup.py (remove the 'v' prefix)
           VERSION_WITHOUT_V="${NEXT_VERSION#v}"
           echo "Updating setup.py from current version to: $VERSION_WITHOUT_V"
