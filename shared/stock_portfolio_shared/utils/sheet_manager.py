@@ -214,7 +214,7 @@ class SheetsManager(BaseManager):
         """Get sheets data"""
         logger.info("Authenticating Sheets: %s", spreadsheet_task.spreadsheet_id)
         try:
-            credentials_obj = Credentials(**spreadsheet_task.credentials)
+            credentials_obj = self.dict_to_credentials(spreadsheet_task.credentials)
             # Use the custom HTTP client with disabled SSL validation
             # Create a Session that skips SSL checks
             session = AuthorizedSession(credentials_obj) 
@@ -439,7 +439,7 @@ class SheetsManager(BaseManager):
             sheet_names[4]: self.taxation_formatting
         }
     
-    def credentials_to_dict(self, credentials):
+    def credentials_to_dict(self, credentials: Credentials):
         """Convert credentials to dictionary"""
         return {
             'token': credentials.token,
@@ -451,7 +451,7 @@ class SheetsManager(BaseManager):
             'expiry': credentials.expiry.isoformat() if credentials.expiry else None
         }
     
-    def dict_to_credentials(self, credentials_dict):
+    def dict_to_credentials(self, credentials_dict: dict) -> Credentials:
         """Convert dictionary back to Credentials object"""
         from datetime import datetime
         

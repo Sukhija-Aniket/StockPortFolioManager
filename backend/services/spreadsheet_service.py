@@ -45,8 +45,7 @@ class SpreadsheetService:
         """Create a new spreadsheet for user"""
         try:
             # Convert credentials dict to Credentials object
-            from google.oauth2.credentials import Credentials
-            creds_obj = Credentials(**credentials)
+            creds_obj = self.sheets_manager.dict_to_credentials(credentials)
             
             # Create Google services
             sheets_service = self.google_service.create_spreadsheet_service(creds_obj)
@@ -94,8 +93,7 @@ class SpreadsheetService:
                 raise ValueError("Spreadsheet not found or access denied")
             
             # Convert credentials dict to Credentials object
-            from google.oauth2.credentials import Credentials
-            creds_obj = Credentials(**credentials)
+            creds_obj = self.sheets_manager.dict_to_credentials(credentials)
             
             # Create Google Drive service
             drive_service = self.google_service.create_drive_service(creds_obj)
