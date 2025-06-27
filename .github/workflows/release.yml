@@ -65,19 +65,35 @@ jobs:
             git commit -m "Auto-commit remaining changes before release" || true
           fi
 
-      - name: Run auto shipit (no push)
-        id: auto
+      - name: Calculate next version
+        id: version
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Run auto shipit without pushing
-          auto shipit --no-push
-          
-          # Capture the new version
-          NEW_VERSION=$(auto version)
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
+          # Calculate the next version without publishing
+          NEXT_VERSION=$(auto version --dry-run)
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Generate changelog without publishing
+          CHANGELOG=$(auto changelog --dry-run)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create version commit
+        run: |
+          # Create the version commit manually
+          auto version --dry-run
+          git add .
+          git commit -m "Bump version to ${{ steps.version.outputs.next_version }} [skip ci]"
 
       - name: Push release branch
         run: |
@@ -89,9 +105,9 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           base: release
           branch: auto-release-${{ github.run_id }}
-          title: "Auto Release ${{ steps.auto.outputs.new_version }}"
+          title: "Auto Release ${{ steps.version.outputs.next_version }}"
           body: |
-            ## Auto Release ${{ steps.auto.outputs.new_version }}
+            ## Auto Release ${{ steps.version.outputs.next_version }}
             
             This is an automated release PR created by the auto-release workflow.
             
@@ -99,13 +115,16 @@ jobs:
             **Source:** ${{ github.ref }}
             
             ### Changes
-            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Version bump to ${{ steps.version.outputs.next_version }}
             - Auto-generated release notes
+            
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
             
             ---
             *This PR was created automatically by the auto-release workflow.*
           delete-branch: true
-          commit-message: "Auto Release ${{ steps.auto.outputs.new_version }}"
+          commit-message: "Auto Release ${{ steps.version.outputs.next_version }}"
           title-prefix: "Auto Release: "
 
       - name: Create GitHub Release
@@ -113,16 +132,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
-          tag_name: ${{ steps.auto.outputs.new_version }}
-          release_name: Release ${{ steps.auto.outputs.new_version }}
+          tag_name: ${{ steps.version.outputs.next_version }}
+          release_name: Release ${{ steps.version.outputs.next_version }}
           body: |
-            ## Auto Release ${{ steps.auto.outputs.new_version }}
+            ## Auto Release ${{ steps.version.outputs.next_version }}
             
             This release was created automatically by the auto-release workflow.
             
             ### Changes
-            - Version bump to ${{ steps.auto.outputs.new_version }}
+            - Version bump to ${{ steps.version.outputs.next_version }}
             - Auto-generated release notes
+            
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
             
             ---
             *This release was created automatically.*
