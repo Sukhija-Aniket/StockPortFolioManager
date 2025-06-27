@@ -26,12 +26,6 @@ on:
         required: false
         type: string
 
-# Allow the workflow to bypass branch protection rules
-permissions:
-  contents: write
-  pull-requests: write
-  statuses: write
-
 # Prevent concurrent runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.run_id }}
