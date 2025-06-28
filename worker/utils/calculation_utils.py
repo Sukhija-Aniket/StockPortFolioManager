@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Dict
 import pandas as pd
 from stock_portfolio_shared.constants.general_constants import BUY, SELL
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
@@ -139,51 +140,70 @@ def calculate_gst(row, participant_name: str = "zerodha"):
         logger.error(f"Error calculating GST for {participant_name}: {e}")
         raise
 
-def calculate_average_cost_of_sold_shares(infoMap: pd.DataFrame) -> float:
+def calculate_average_cost_of_sold_shares(infoMap: Dict[str, pd.DataFrame]) -> float:
     logger.info(f"Calculating average cost of sold shares")
     try:
-        sold_list = infoMap[SELL]
-        buy_list = infoMap[BUY]
+        sold_df = infoMap[SELL]
+        buy_df = infoMap[BUY]
 
-        j = 0
-        price = 0
-        intraCount = 0
-        delCount = 0
-        counter = 0
+        # If no buy or sell data, return 0
+        if sold_df.empty or buy_df.empty:
+            return 0.0
+
+        # Convert to lists for easier processing
+        sold_list = sold_df.to_dict('records')
+        buy_list = buy_df.to_dict('records')
+
+        sell_idx, buy_idx = 0, 0
+        price = 0.0
+        intraCount = 0.0
+        delCount = 0.0
+        counter = 0.0
 
         logger.info(f"Calculating for IntraDay Orders")
-        # Calculating for IntraDay Orders
-        for i in range(0, len(sold_list)):
-            sold_list[i][Raw_constants.QUANTITY] = abs(sold_list[i][Raw_constants.QUANTITY])
-            sold_list[i][TransDetails_constants.FINAL_AMOUNT] = abs(sold_list[i][TransDetails_constants.FINAL_AMOUNT])
-            if j >= len(buy_list):
-                break
-            if buy_list[j][Raw_constants.DATE] == sold_list[i][Raw_constants.DATE]:
-                if buy_list[j][Raw_constants.QUANTITY] < sold_list[i][Raw_constants.QUANTITY]:
-                    intraCount += buy_list[j][Raw_constants.QUANTITY]
-                    sold_list[i][Raw_constants.QUANTITY] -= buy_list[j][Raw_constants.QUANTITY]
-                    price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
-                    buy_list[j][Raw_constants.QUANTITY] = 0
-                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
-                    j += 1
-                    i -= 1
-                elif buy_list[j][Raw_constants.QUANTITY] > sold_list[i][Raw_constants.QUANTITY]:
-                    price += ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] * sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
-                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] -= ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] *
-                                        sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
-                    buy_list[j][Raw_constants.QUANTITY] -= sold_list[i][Raw_constants.QUANTITY]
-                    intraCount += sold_list[i][Raw_constants.QUANTITY]
-                    sold_list[i][Raw_constants.QUANTITY] = 0
-                else:
-                    intraCount += sold_list[i][Raw_constants.QUANTITY]
-                    sold_list[i][Raw_constants.QUANTITY] = 0
-                    price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
-                    buy_list[j][Raw_constants.QUANTITY] = 0
-                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
-                    j += 1
-            elif buy_list[j][Raw_constants.DATE] < sold_list[i][Raw_constants.DATE]:
-                i -= 1
-                j += 1
+        # Calculating for IntraDay Orders using while loops with clear conditions
+        while sell_idx < len(sold_list) and buy_idx < len(buy_list):
+            sold_quantity = abs(sold_list[sell_idx][Raw_constants.QUANTITY])
+            sold_amount = abs(sold_list[sell_idx][TransDetails_constants.FINAL_AMOUNT])
+            
+            # Check if same date (intraday)
+            if buy_list[buy_idx][Raw_constants.DATE] == sold_list[sell_idx][Raw_constants.DATE]:
+                buy_quantity = buy_list[buy_idx][Raw_constants.QUANTITY]
+                
+                if buy_quantity < sold_quantity:
+                    # Buy quantity exhausted, move to next buy
+                    intraCount += buy_quantity
+                    sold_list[sell_idx][Raw_constants.QUANTITY] -= buy_quantity
+                    price += buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT]
+                    buy_list[buy_idx][Raw_constants.QUANTITY] = 0
+                    buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT] = 0
+                    buy_idx += 1  # Move to next buy
+                    # Don't increment i, process remaining sold quantity
+                    
+                elif buy_quantity > sold_quantity:
+                    # Sold quantity exhausted, move to next sell
+                    price += (buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT] * sold_quantity) / buy_quantity
+                    buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT] -= (buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT] * sold_quantity) / buy_quantity
+                    buy_list[buy_idx][Raw_constants.QUANTITY] -= sold_quantity
+                    intraCount += sold_quantity
+                    sold_list[sell_idx][Raw_constants.QUANTITY] = 0
+                    sell_idx += 1  # Move to next sell
+                    
+                else:  # Equal quantities
+                    intraCount += sold_quantity
+                    sold_list[sell_idx][Raw_constants.QUANTITY] = 0
+                    price += buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT]
+                    buy_list[buy_idx][Raw_constants.QUANTITY] = 0
+                    buy_list[buy_idx][TransDetails_constants.FINAL_AMOUNT] = 0
+                    sell_idx += 1  # Move to next sell
+                    buy_idx += 1  # Move to next buy
+                    
+            elif buy_list[buy_idx][Raw_constants.DATE] < sold_list[sell_idx][Raw_constants.DATE]:
+                # Buy date is earlier, skip this buy (it's for delivery)
+                buy_idx += 1
+            else:
+                # Sell date is earlier, skip this sell (no matching buy)
+                sell_idx += 1
 
         
         # Calculating for Delivery Orders
@@ -198,6 +218,9 @@ def calculate_average_cost_of_sold_shares(infoMap: pd.DataFrame) -> float:
                 counter = delCount
         counter += intraCount
 
+        if counter == 0:
+            return 0.0
+            
         return price/counter
     except Exception as e:
         logger.error(f"Error calculating average cost of sold shares: {e}")
