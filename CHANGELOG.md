@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13] - 2025-06-28
+
+### Changes
+- c29a92e feat: Fix (#21)
+- 9263dfe Bump version to v0.1.12 [skip ci]
+- 18a98cf feat: add dockerfile change (#20)
+- a39ee53 Bump version to v0.1.11 [skip ci]
+- a8919e4 Merge pull request #19 from Sukhija-Aniket/fix
+- afca38e feat: fix
+- 7b57260 feat: implement [skip ci] approach for single release workflow run
+- 671281c fix: prevent duplicate release workflow runs by removing push trigger
+- a2848d0 fix: prevent duplicate workflow runs with concurrency control
+- f5d1da9 Bump version to v0.1.10 [skip ci]
+- d25612e Merge pull request #18 from Sukhija-Aniket/v2
+- abb7976 feat: add CHANGELOG.md generation to release workflows
+- b059f9e Bump version to v0.1.9 [skip ci]
+- 1fd55a8 Merge pull request #17 from Sukhija-Aniket/v2
+- fa3c495 feat: hope it works
+
+
 ## [0.1.12] - 2025-06-27
 
 ### Changes
