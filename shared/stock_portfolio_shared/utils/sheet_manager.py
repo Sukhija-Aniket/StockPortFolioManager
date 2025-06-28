@@ -2,6 +2,7 @@
 Google Sheets utilities for Stock Portfolio Manager
 """
 
+from typing import Callable
 import gspread
 import logging
 import pandas as pd
@@ -32,7 +33,7 @@ class SheetsManager(BaseManager):
             logger.warning(f"Column '{column_name}' not found in headers: {headers}")
             return None
     
-    def read_data(self, spreadsheet, sheet_name):
+    def read_data(self, spreadsheet, sheet_name: str) -> pd.DataFrame:
         """Read data from Google Sheets"""
         worksheets = spreadsheet.worksheets()
         sheet_names = [worksheet.title for worksheet in worksheets]
@@ -45,7 +46,7 @@ class SheetsManager(BaseManager):
         df = pd.DataFrame(data[1:], columns=data[0])
         return df
     
-    def add_data(self, input_data, spreadsheet, sheet_name, allow_duplicates=False, formatting_function=None):
+    def add_data(self, input_data: pd.DataFrame, spreadsheet, sheet_name: str, allow_duplicates: bool = False, formatting_function: Callable = None):
         """Upload data to sheets"""
         try:
             raw_data = self.read_data(spreadsheet, sheet_name)
@@ -91,7 +92,6 @@ class SheetsManager(BaseManager):
         
         try:
             logger.debug(f"Data before cleaning: {data}")
-            logger.debug(f"Data after cleaning: {data}")
             # Convert numeric columns
             numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
             data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric, errors='coerce')  # Keep using to_numeric here instead of DataProcessor.safe_numeric

@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import datetime
+from typing import Dict, List, Optional, Union, Any, Tuple
 from stock_portfolio_shared.constants.general_constants import BUY, SELL
 from stock_portfolio_shared.constants.trans_details_constants import TransDetails_constants
 from stock_portfolio_shared.constants.raw_constants import Raw_constants
@@ -25,14 +26,14 @@ logger = setup_logging(__name__)
 class DataProcessingService:
     """Service for data processing and transformation"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = Config()
         self.market_data_helper = MarketDataHelper()
         self.sheets_manager = SheetsManager()
         self.excel_manager = ExcelManager()
     
     
-    def initialize_data(self, data, extra_cols=None, sort_list=None):
+    def initialize_data(self, data: pd.DataFrame, extra_cols: Optional[List[str]] = None, sort_list: Optional[List[str]] = None) -> pd.DataFrame:
         """Initialize data with extra columns and sorting"""
         try:
             if extra_cols:
@@ -69,7 +70,7 @@ class DataProcessingService:
             data = update_intraday_count(data)
             
             # Create a shared dp_data dictionary to track DP charges per name/date combination
-            dp_data = {}
+            dp_data: Dict[str, Dict[str, float]] = {}
             
             # Calculate charges with participant-specific rates
             data[TransDetails_constants.STT] = data.apply(
@@ -113,23 +114,24 @@ class DataProcessingService:
             raise
         
         
-    def get_spl_row(self):
+    def get_spl_row(self) -> Dict[str, Union[str, float]]:
         """Get default Share Profit Loss row"""
         return {
             ShareProfitLoss_constants.DATE: self.config.DEFAULT_DATE,
-            ShareProfitLoss_constants.AVERAGE_BUY_PRICE: 0,
-            ShareProfitLoss_constants.AVERAGE_SALE_PRICE: 0,
-            ShareProfitLoss_constants.AVERAGE_COST_OF_SOLD_SHARES: 0,
-            ShareProfitLoss_constants.SHARES_BOUGHT: 0,
-            ShareProfitLoss_constants.SHARES_SOLD: 0,
-            ShareProfitLoss_constants.TOTAL_INVESTMENT: 0,
-            ShareProfitLoss_constants.CURRENT_INVESTMENT: 0
+            ShareProfitLoss_constants.AVERAGE_BUY_PRICE: 0.0,
+            ShareProfitLoss_constants.AVERAGE_SALE_PRICE: 0.0,
+            ShareProfitLoss_constants.AVERAGE_COST_OF_SOLD_SHARES: 0.0,
+            ShareProfitLoss_constants.SHARES_BOUGHT: 0.0,
+            ShareProfitLoss_constants.SHARES_SOLD: 0.0,
+            ShareProfitLoss_constants.TOTAL_INVESTMENT: 0.0,
+            ShareProfitLoss_constants.CURRENT_INVESTMENT: 0.0
         }
         
     def _get_current_price(self, share_name: str) -> float:
+        """Get current stock price for a given share"""
         return self.market_data_helper.get_current_stock_price(share_name)
     
-    def process_share_profit_loss(self, data):
+    def process_share_profit_loss(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process share profit loss data"""
         try:
             logger.info("Processing Share Profit Loss Data")
@@ -148,8 +150,8 @@ class DataProcessingService:
             # Group by transaction type and name
             grouped_data = data.groupby([TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME])
             
-            info_map = {}
-            row_data = {}
+            info_map: Dict[str, Dict[str, pd.DataFrame]] = {}
+            row_data: Dict[str, Dict[str, Union[str, float]]] = {}
             
             # Create DataFrame with ShareProfitLoss constants
             constants_dict = {key: value for key, value in ShareProfitLoss_constants.__dict__.items() 
@@ -198,8 +200,9 @@ class DataProcessingService:
             logger.error(f"Error processing share profit loss: {e}")
             raise
     
-    def _process_sell_transactions(self, transactions, row_data):
+    def _process_sell_transactions(self, transactions: Dict[str, pd.DataFrame], row_data: Dict[str, Union[str, float]]) -> None:
         """Process sell transactions"""
+        logger.info(f"Processing sell transactions")
         average_sale_price = 0.0
         num_shares_sold = 0.0
         current_investment = 0.0
@@ -235,10 +238,11 @@ class DataProcessingService:
         row_data[ShareProfitLoss_constants.AVERAGE_COST_OF_SOLD_SHARES] = average_cost_of_sold_shares
         row_data[ShareProfitLoss_constants.CURRENT_INVESTMENT] = current_investment
     
-    def _process_buy_transactions(self, transactions, row_data):
+    def _process_buy_transactions(self, transactions: Dict[str, pd.DataFrame], row_data: Dict[str, Union[str, float]]) -> None:
         """Process buy transactions"""
+        logger.info(f"Processing buy transactions")
         average_buy_price = 0.0
-        num_shares_bought = 0
+        num_shares_bought = 0.0
         current_investment = 0.0
         total_investment = 0.0
         
@@ -263,10 +267,11 @@ class DataProcessingService:
         row_data[ShareProfitLoss_constants.TOTAL_INVESTMENT] = total_investment
         row_data[ShareProfitLoss_constants.CURRENT_INVESTMENT] = current_investment
 
-    def _get_stock_price(self, date: datetime, name: str) -> list:
+    def _get_stock_price(self, date: datetime, name: str) -> List[float]:
+        """Get stock price details for a given date and stock name"""
         return self.market_data_helper.get_stock_price_details(date, name)
 
-    def process_daily_profit_loss(self, data):
+    def process_daily_profit_loss(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process daily profit loss data"""
         try:
             logger.info("Processing Daily Profit Loss Data")
@@ -286,8 +291,8 @@ class DataProcessingService:
             data[Raw_constants.DATE] = pd.to_datetime(data[Raw_constants.DATE], format=self.config.DATA_TIME_FORMAT)
             grouped_data = data.groupby([Raw_constants.DATE, Raw_constants.NAME])
 
-            row_data = {}
-            daily_spendings = {}
+            row_data: Dict[str, Dict[str, Dict[str, Union[str, float]]]] = {}
+            daily_spendings: Dict[str, float] = {}
             
             # Create DataFrame with DailyProfitLoss constants
             constants_dict = {key: value for key, value in DailyProfitLoss_constants.__dict__.items() 
@@ -297,15 +302,15 @@ class DataProcessingService:
             for (date, name), group in grouped_data:
                 date_str = date.strftime(self.config.DATA_TIME_FORMAT)
                 if date_str not in daily_spendings:
-                    daily_spendings[date_str] = 0
+                    daily_spendings[date_str] = 0.0
                     row_data[date_str] = {}
                 
                 # Get price details from market data helper
                 price_details = self._get_stock_price(date, name)
                 
-                average_price = 0
-                quantity = 0
-                amount_invested = 0
+                average_price = 0.0
+                quantity = 0.0
+                amount_invested = 0.0
                 
                 for _, transaction in group.iterrows():
                     average_price = (average_price * quantity + transaction[TransDetails_constants.FINAL_AMOUNT]) / (quantity + abs(transaction[TransDetails_constants.QUANTITY]))
@@ -320,11 +325,11 @@ class DataProcessingService:
                     DailyProfitLoss_constants.AVERAGE_PRICE: average_price,
                     DailyProfitLoss_constants.QUANTITY: quantity,
                     DailyProfitLoss_constants.AMOUNT_INVESTED: amount_invested,
-                    DailyProfitLoss_constants.OPENING_PRICE: price_details[2] if len(price_details) > 2 else 0,
-                    DailyProfitLoss_constants.HIGH: price_details[3] if len(price_details) > 3 else 0,
-                    DailyProfitLoss_constants.LOW: price_details[4] if len(price_details) > 4 else 0,
-                    DailyProfitLoss_constants.CLOSING_PRICE: price_details[5] if len(price_details) > 5 else 0,
-                    DailyProfitLoss_constants.VOLUME: price_details[6] if len(price_details) > 6 else 0,
+                    DailyProfitLoss_constants.OPENING_PRICE: price_details[2] if len(price_details) > 2 else 0.0,
+                    DailyProfitLoss_constants.HIGH: price_details[3] if len(price_details) > 3 else 0.0,
+                    DailyProfitLoss_constants.LOW: price_details[4] if len(price_details) > 4 else 0.0,
+                    DailyProfitLoss_constants.CLOSING_PRICE: price_details[5] if len(price_details) > 5 else 0.0,
+                    DailyProfitLoss_constants.VOLUME: price_details[6] if len(price_details) > 6 else 0.0,
                     DailyProfitLoss_constants.DAILY_SPENDINGS: 0.0
                 }
                 
@@ -358,7 +363,7 @@ class DataProcessingService:
             logger.error(f"Error processing daily profit loss: {e}")
             raise
         
-    def get_taxation_row(self):
+    def get_taxation_row(self) -> Dict[str, float]:
         """Get default Taxation row"""
         return {
             Taxation_constants.LTCG: 0.0,
@@ -367,7 +372,7 @@ class DataProcessingService:
             Taxation_constants.TOTAL_GAINS: 0.0
         }
 
-    def process_taxation(self, data):
+    def process_taxation(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process taxation data"""
         try:
             logger.info("Processing Taxation Data")
@@ -386,11 +391,12 @@ class DataProcessingService:
             # Group by transaction type, name and date
             grouped_data = data.groupby([TransDetails_constants.TRANSACTION_TYPE, Raw_constants.NAME, Raw_constants.DATE])
             
-            infoMap = {}
-            rowData = {}
-            intraMap = {}
-            global_buy_data = {}
-            global_sell_data = {}
+            infoMap: Dict[str, Dict[str, pd.DataFrame]] = {}
+            rowData: Dict[str, Dict[str, Dict[str, float]]] = {}
+            intraMap: Dict[str, Dict[str, float]] = {}
+            intraMapList: Dict[str, Dict[str, List[float]]] = {}
+            global_buy_data: Dict[str, List[List[Union[str, float]]]] = {}
+            global_sell_data: Dict[str, List[List[Union[str, float]]]] = {}
             
             # Create DataFrame with Taxation constants
             constants_dict = {key: value for key, value in Taxation_constants.__dict__.items() 
@@ -403,6 +409,7 @@ class DataProcessingService:
                     infoMap[name] = {}
                     rowData[name] = {}
                     intraMap[name] = {}
+                    intraMapList[name] = {}
                 if date not in infoMap[name]:
                     infoMap[name][date] = {}
                 if get_financial_year(date) not in rowData[name]:
@@ -430,11 +437,12 @@ class DataProcessingService:
                             ])
                 
                 if transaction_type == SELL:
-                    buyData = []
-                    sellData = []
+                    buyData: List[List[float]] = []
+                    sellData: List[List[float]] = []
                     
                     if BUY in infoMap[name][date]:
                         intraMap[name][date] = 0.0
+                        intraMapList[name][date] = [0.0, 0.0]
                         
                         # Process buy transactions
                         for _, transaction in infoMap[name][date][BUY].iterrows():
@@ -481,7 +489,8 @@ class DataProcessingService:
                                 i += 1
                                 j += 1
                         temp = intraMap[name][date]
-                        intraMap[name][date] = [temp, temp]
+                        intraMapList[name][date] = [temp, temp] 
+                        
             
             # Writing algorithm to find the long term and short term capital gains
             for name in infoMap.keys():
@@ -489,21 +498,21 @@ class DataProcessingService:
                 i, j = 0, 0
                 while i < len(global_buy_data[name]):
                     buyDetails = global_buy_data[name][i]
-                    if buyDetails[0] in intraMap[name]:
-                        tempval = min(buyDetails[1], intraMap[name][buyDetails[0]][0])
+                    if buyDetails[0] in intraMapList[name]:
+                        tempval = min(buyDetails[1], intraMapList[name][buyDetails[0]][0])
                         buyDetails[2] = (buyDetails[1] - tempval) * (buyDetails[2]/buyDetails[1])
                         buyDetails[1] -= tempval
                         global_buy_data[name][i] = buyDetails
-                        intraMap[name][buyDetails[0]][0] -= tempval
+                        intraMapList[name][buyDetails[0]][0] -= tempval
                     i += 1
                 while name in global_sell_data and j < len(global_sell_data[name]):
                     sellDetails = global_sell_data[name][j]
-                    if sellDetails[0] in intraMap[name]:
-                        tempval = min(sellDetails[1], intraMap[name][sellDetails[0]][1])
+                    if sellDetails[0] in intraMapList[name]:
+                        tempval = min(sellDetails[1], intraMapList[name][sellDetails[0]][1])
                         sellDetails[2] = (sellDetails[1] - tempval) * (sellDetails[2]/ sellDetails[1])
                         sellDetails[1] -= tempval
                         global_sell_data[name][j] = sellDetails
-                        intraMap[name][sellDetails[0]][1] -= tempval
+                        intraMapList[name][sellDetails[0]][1] -= tempval
                     j += 1
                     
                 # Now I will iterate again to find the LTCG and STCG for those stocks

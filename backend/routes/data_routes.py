@@ -80,6 +80,10 @@ def add_data():
         
         # Check if file was uploaded
         # TODO:Improve later for multiple files.
+        # TODO: Improve for not adding already existing data.
+        # TODO: Improve for adding data for grow from other brokers.
+        # TODO: Taxation Calculation is done not on the final amount but on the amount before brokerage.
+        # TODO: Add one more page where I sort by share, and show the taxation data for each sell transaction.
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
         
