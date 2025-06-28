@@ -139,62 +139,69 @@ def calculate_gst(row, participant_name: str = "zerodha"):
         logger.error(f"Error calculating GST for {participant_name}: {e}")
         raise
 
-def calculate_average_cost_of_sold_shares(infoMap):
-    sold_list = infoMap[SELL]
-    buy_list = infoMap[BUY]
+def calculate_average_cost_of_sold_shares(infoMap: pd.DataFrame) -> float:
+    logger.info(f"Calculating average cost of sold shares")
+    try:
+        sold_list = infoMap[SELL]
+        buy_list = infoMap[BUY]
 
-    j = 0
-    price = 0
-    intraCount = 0
-    delCount = 0
-    counter = 0
+        j = 0
+        price = 0
+        intraCount = 0
+        delCount = 0
+        counter = 0
 
-    # Calculating for IntraDay Orders
-    for i in range(0, len(sold_list)):
-        sold_list[i][Raw_constants.QUANTITY] = abs(sold_list[i][Raw_constants.QUANTITY])
-        sold_list[i][TransDetails_constants.FINAL_AMOUNT] = abs(sold_list[i][TransDetails_constants.FINAL_AMOUNT])
-        if j >= len(buy_list):
-            break
-        if buy_list[j][Raw_constants.DATE] == sold_list[i][Raw_constants.DATE]:
-            if buy_list[j][Raw_constants.QUANTITY] < sold_list[i][Raw_constants.QUANTITY]:
-                intraCount += buy_list[j][Raw_constants.QUANTITY]
-                sold_list[i][Raw_constants.QUANTITY] -= buy_list[j][Raw_constants.QUANTITY]
-                price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
-                buy_list[j][Raw_constants.QUANTITY] = 0
-                buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
-                j += 1
+        logger.info(f"Calculating for IntraDay Orders")
+        # Calculating for IntraDay Orders
+        for i in range(0, len(sold_list)):
+            sold_list[i][Raw_constants.QUANTITY] = abs(sold_list[i][Raw_constants.QUANTITY])
+            sold_list[i][TransDetails_constants.FINAL_AMOUNT] = abs(sold_list[i][TransDetails_constants.FINAL_AMOUNT])
+            if j >= len(buy_list):
+                break
+            if buy_list[j][Raw_constants.DATE] == sold_list[i][Raw_constants.DATE]:
+                if buy_list[j][Raw_constants.QUANTITY] < sold_list[i][Raw_constants.QUANTITY]:
+                    intraCount += buy_list[j][Raw_constants.QUANTITY]
+                    sold_list[i][Raw_constants.QUANTITY] -= buy_list[j][Raw_constants.QUANTITY]
+                    price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
+                    buy_list[j][Raw_constants.QUANTITY] = 0
+                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
+                    j += 1
+                    i -= 1
+                elif buy_list[j][Raw_constants.QUANTITY] > sold_list[i][Raw_constants.QUANTITY]:
+                    price += ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] * sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
+                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] -= ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] *
+                                        sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
+                    buy_list[j][Raw_constants.QUANTITY] -= sold_list[i][Raw_constants.QUANTITY]
+                    intraCount += sold_list[i][Raw_constants.QUANTITY]
+                    sold_list[i][Raw_constants.QUANTITY] = 0
+                else:
+                    intraCount += sold_list[i][Raw_constants.QUANTITY]
+                    sold_list[i][Raw_constants.QUANTITY] = 0
+                    price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
+                    buy_list[j][Raw_constants.QUANTITY] = 0
+                    buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
+                    j += 1
+            elif buy_list[j][Raw_constants.DATE] < sold_list[i][Raw_constants.DATE]:
                 i -= 1
-            elif buy_list[j][Raw_constants.QUANTITY] > sold_list[i][Raw_constants.QUANTITY]:
-                price += ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] * sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
-                buy_list[j][TransDetails_constants.FINAL_AMOUNT] -= ((buy_list[j][TransDetails_constants.FINAL_AMOUNT] *
-                                    sold_list[i][Raw_constants.QUANTITY])/buy_list[j][Raw_constants.QUANTITY])
-                buy_list[j][Raw_constants.QUANTITY] -= sold_list[i][Raw_constants.QUANTITY]
-                intraCount += sold_list[i][Raw_constants.QUANTITY]
-                sold_list[i][Raw_constants.QUANTITY] = 0
-            else:
-                intraCount += sold_list[i][Raw_constants.QUANTITY]
-                sold_list[i][Raw_constants.QUANTITY] = 0
-                price += buy_list[j][TransDetails_constants.FINAL_AMOUNT]
-                buy_list[j][Raw_constants.QUANTITY] = 0
-                buy_list[j][TransDetails_constants.FINAL_AMOUNT] = 0
                 j += 1
-        elif buy_list[j][Raw_constants.DATE] < sold_list[i][Raw_constants.DATE]:
-            i -= 1
-            j += 1
 
-    # Calculating for Delivery Orders
-    for x in sold_list:
-        delCount += x[Raw_constants.QUANTITY]
-    for x in buy_list:
-        if x[Raw_constants.QUANTITY] <= (delCount - counter):
-            price += x[TransDetails_constants.FINAL_AMOUNT]
-            counter += x[Raw_constants.QUANTITY]
-        else:
-            price += (x[TransDetails_constants.FINAL_AMOUNT] * (delCount - counter))/x[Raw_constants.QUANTITY]
-            counter = delCount
-    counter += intraCount
+        
+        # Calculating for Delivery Orders
+        for x in sold_list:
+            delCount += x[Raw_constants.QUANTITY]
+        for x in buy_list:
+            if x[Raw_constants.QUANTITY] <= (delCount - counter):
+                price += x[TransDetails_constants.FINAL_AMOUNT]
+                counter += x[Raw_constants.QUANTITY]
+            else:
+                price += (x[TransDetails_constants.FINAL_AMOUNT] * (delCount - counter))/x[Raw_constants.QUANTITY]
+                counter = delCount
+        counter += intraCount
 
-    return price/counter
+        return price/counter
+    except Exception as e:
+        logger.error(f"Error calculating average cost of sold shares: {e}")
+        raise
 
 
 

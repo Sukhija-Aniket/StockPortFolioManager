@@ -32,7 +32,7 @@ class DataProcessingService:
         self.excel_manager = ExcelManager()
     
     
-    def initialize_data(self, data, extra_cols=None, sort_list=None):
+    def initialize_data(self, data: pd.DataFrame, extra_cols: list = None, sort_list: list = None) -> pd.DataFrame:
         """Initialize data with extra columns and sorting"""
         try:
             if extra_cols:
@@ -129,7 +129,7 @@ class DataProcessingService:
     def _get_current_price(self, share_name: str) -> float:
         return self.market_data_helper.get_current_stock_price(share_name)
     
-    def process_share_profit_loss(self, data):
+    def process_share_profit_loss(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process share profit loss data"""
         try:
             logger.info("Processing Share Profit Loss Data")
@@ -198,8 +198,9 @@ class DataProcessingService:
             logger.error(f"Error processing share profit loss: {e}")
             raise
     
-    def _process_sell_transactions(self, transactions, row_data):
+    def _process_sell_transactions(self, transactions: dict, row_data: dict):
         """Process sell transactions"""
+        logger.info(f"Processing sell transactions")
         average_sale_price = 0.0
         num_shares_sold = 0.0
         current_investment = 0.0
@@ -235,8 +236,9 @@ class DataProcessingService:
         row_data[ShareProfitLoss_constants.AVERAGE_COST_OF_SOLD_SHARES] = average_cost_of_sold_shares
         row_data[ShareProfitLoss_constants.CURRENT_INVESTMENT] = current_investment
     
-    def _process_buy_transactions(self, transactions, row_data):
+    def _process_buy_transactions(self, transactions: dict, row_data: dict):
         """Process buy transactions"""
+        logger.info(f"Processing buy transactions")
         average_buy_price = 0.0
         num_shares_bought = 0
         current_investment = 0.0
@@ -367,7 +369,7 @@ class DataProcessingService:
             Taxation_constants.TOTAL_GAINS: 0.0
         }
 
-    def process_taxation(self, data):
+    def process_taxation(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process taxation data"""
         try:
             logger.info("Processing Taxation Data")
