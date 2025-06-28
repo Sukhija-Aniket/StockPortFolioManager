@@ -73,24 +73,24 @@ def _spreadsheet_to_task(spreadsheet_data, credentials):
 @data_bp.route('/add', methods=['POST'])
 @require_auth
 def add_data():
-    """Add data to spreadsheet"""
+    """Add data to spreadsheet - supports multiple files"""
     try:
         user = session.get('user')
         credentials = session.get('credentials')
         
-        # Check if file was uploaded
-        # TODO:Improve later for multiple files.
         # TODO: Improve for not adding already existing data.
         # TODO: Improve for adding data for grow from other brokers.
         # TODO: Taxation Calculation is done not on the final amount but on the amount before brokerage.
         # TODO: Add one more page where I sort by share, and show the taxation data for each sell transaction.
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+        # TODO: fix the api to fetch current price of the share.
         
-        file = request.files['file']
+        # Check if files were uploaded
+        if 'files' not in request.files:
+            return jsonify({'error': 'No files provided'}), 400
         
-        # Validate file
-        data_service.validate_file_upload(file)
+        files = request.files.getlist('files')
+        if not files or all(file.filename == '' for file in files):
+            return jsonify({'error': 'No files selected'}), 400
         
         # Get spreadsheet ID from form data
         spreadsheet_url = request.form.get('spreadsheet_url')
@@ -103,13 +103,7 @@ def add_data():
         if not spreadsheet:
             return jsonify({'error': 'Spreadsheet not found or access denied'}), 404
         
-        # Save file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as temp_file:
-            file.save(temp_file.name)
-            temp_file_path = temp_file.name
-        
         # Create spreadsheet data for task conversion
-        # Use existing spreadsheet metadata from database
         spreadsheet_data = {
             'url': spreadsheet_url,
             'title': request.form.get('title') or spreadsheet.title,
@@ -125,18 +119,79 @@ def add_data():
             logger.error(f"Error creating spreadsheet task: {e}")
             return jsonify({'error': 'Failed to create task'}), 500
         
-        try:
-            data_service.process_data_upload(
-                temp_file_path, 
-                spreadsheet_task
-            )
+        # Process each file
+        results = []
+        temp_files = []
+        
+        for i, file in enumerate(files):
+            file_result = {
+                'filename': file.filename,
+                'success': False,
+                'message': '',
+                'index': i
+            }
             
-            return jsonify({'message': 'Data uploaded successfully'})
-            
-        finally:
-            # Clean up temporary file
+            try:
+                # Validate file
+                data_service.validate_file_upload(file)
+                
+                # Save file temporarily
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as temp_file:
+                    file.save(temp_file.name)
+                    temp_file_path = temp_file.name
+                    temp_files.append(temp_file_path)
+                
+                # Process the file
+                data_service.process_data_upload(temp_file_path, spreadsheet_task)
+                
+                file_result['success'] = True
+                file_result['message'] = 'File processed successfully'
+                results.append(file_result)
+                
+            except ValueError as e:
+                file_result['message'] = f'Validation error: {str(e)}'
+                results.append(file_result)
+                logger.warning(f"File validation failed for {file.filename}: {e}")
+                
+            except Exception as e:
+                file_result['message'] = f'Processing error: {str(e)}'
+                results.append(file_result)
+                logger.error(f"Error processing file {file.filename}: {e}")
+        
+        # Clean up temporary files
+        for temp_file_path in temp_files:
             if os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp file {temp_file_path}: {e}")
+        
+        # Determine overall success
+        successful_files = [r for r in results if r['success']]
+        failed_files = [r for r in results if not r['success']]
+        
+        if not successful_files:
+            return jsonify({
+                'error': 'All files failed to process',
+                'details': results
+            }), 400
+        
+        if failed_files:
+            # Some files failed
+            return jsonify({
+                'message': f'Processed {len(successful_files)} out of {len(files)} files successfully',
+                'successful': len(successful_files),
+                'failed': len(failed_files),
+                'details': results
+            }), 207  # Multi-Status
+        
+        # All files succeeded
+        return jsonify({
+            'message': f'All {len(files)} files processed successfully',
+            'successful': len(successful_files),
+            'failed': 0,
+            'details': results
+        })
         
     except GoogleAuthError as e:
         logger.warning(f"Authentication required for add_data: {e}")
