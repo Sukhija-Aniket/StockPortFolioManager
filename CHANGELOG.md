@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15] - 2025-06-29
+
+### Changes
+- ccafcb7 Merge pull request #23 from Sukhija-Aniket/fix
+- b953602 feat: fix for api and tax calculation
+- fcaf98c Bump version to v0.1.14 [skip ci]
+- 9c3beff Merge pull request #22 from Sukhija-Aniket/fix
+- 82c515d feat: version update
+- 1b12888 feat: multiple file support added
+- 289c4e4 Bump version to v0.1.13 [skip ci]
+- c29a92e feat: Fix (#21)
+- 9263dfe Bump version to v0.1.12 [skip ci]
+- 18a98cf feat: add dockerfile change (#20)
+- a39ee53 Bump version to v0.1.11 [skip ci]
+- a8919e4 Merge pull request #19 from Sukhija-Aniket/fix
+- afca38e feat: fix
+- 7b57260 feat: implement [skip ci] approach for single release workflow run
+- 671281c fix: prevent duplicate release workflow runs by removing push trigger
+
+
 ## [0.1.14] - 2025-06-28
 
 ### Changes
