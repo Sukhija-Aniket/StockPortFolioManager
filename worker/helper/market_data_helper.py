@@ -32,7 +32,7 @@ class MarketDataHelper:
         try:
             full_name = stock_name + exchange_suffix
             stock = yf.Ticker(full_name)
-            hist = stock.history(start=date, end=date + timedelta(days=1))
+            hist = stock.history(start=date - timedelta(days=5), end=date - timedelta(days=4))
             
             if not hist.empty:
                 row = hist.iloc[0]

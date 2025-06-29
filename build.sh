@@ -6,9 +6,9 @@
 get_version_from_setup() {
     local setup_file="shared/setup.py"
     if [ -f "$setup_file" ]; then
-        # Extract version from setup.py using grep and sed
+        # Extract version from setup.py using grep and sed, then add 'v' prefix
         local version=$(grep -o "version=['\"][^'\"]*['\"]" "$setup_file" | sed "s/version=['\"]//;s/['\"]//")
-        echo "$version"
+        echo "v$version"
     else
         echo "v0.1.14"  # Default fallback
     fi
@@ -23,6 +23,6 @@ export SHARED_VERSION="$VERSION"
 
 # Build the containers
 echo "Building Docker containers..."
-docker-compose build
+docker-compose build --no-cache
 
 echo "Build completed with version: $VERSION"
