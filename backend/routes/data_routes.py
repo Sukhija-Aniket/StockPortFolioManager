@@ -77,30 +77,34 @@ def add_data():
     try:
         user = session.get('user')
         credentials = session.get('credentials')
-        
+        # TODO: Keep a Repository of all stock split and bonus share issues notices.
+        # TODO: A stock split or bonus share happens, in that case raw_data should be updated.
         # TODO: Improve for not adding already existing data.
         # TODO: Improve for adding data for grow from other brokers.
-        # TODO: Taxation Calculation is done not on the final amount but on the amount before brokerage.
         # TODO: Add one more page where I sort by share, and show the taxation data for each sell transaction.
-        # TODO: fix the api to fetch current price of the share.
+        # TODO: fix the api to fetch current price of the share --> done, not released yet.
         
         # Check if files were uploaded
         if 'files' not in request.files:
+            logger.error("No files provided")
             return jsonify({'error': 'No files provided'}), 400
         
         files = request.files.getlist('files')
         if not files or all(file.filename == '' for file in files):
+            logger.error("No files selected")
             return jsonify({'error': 'No files selected'}), 400
         
         # Get spreadsheet ID from form data
         spreadsheet_url = request.form.get('spreadsheet_url')
         spreadsheet_id = _get_spreadsheet_id(spreadsheet_url)
         if not spreadsheet_id:
+            logger.error("Spreadsheet ID is required")
             return jsonify({'error': 'Spreadsheet ID is required'}), 400
         
         # Verify spreadsheet ownership
         spreadsheet = spreadsheet_service.get_spreadsheet_by_id(spreadsheet_id, user['id'])
         if not spreadsheet:
+            logger.error("Spreadsheet not found or access denied")
             return jsonify({'error': 'Spreadsheet not found or access denied'}), 404
         
         # Create spreadsheet data for task conversion
@@ -114,6 +118,7 @@ def add_data():
         try:
             spreadsheet_task = _spreadsheet_to_task(spreadsheet_data, credentials)
         except ValueError as e:
+            logger.error(f"Invalid spreadsheet data: {e}")
             return jsonify({'error': f'Invalid spreadsheet data: {e}'}), 400
         except Exception as e:
             logger.error(f"Error creating spreadsheet task: {e}")
@@ -171,6 +176,7 @@ def add_data():
         failed_files = [r for r in results if not r['success']]
         
         if not successful_files:
+            logger.error("All files failed to process")
             return jsonify({
                 'error': 'All files failed to process',
                 'details': results
@@ -186,6 +192,7 @@ def add_data():
             }), 207  # Multi-Status
         
         # All files succeeded
+        logger.info("All files processed successfully")
         return jsonify({
             'message': f'All {len(files)} files processed successfully',
             'successful': len(successful_files),
@@ -215,6 +222,7 @@ def sync_data():
         spreadsheets = data.get('spreadsheets', [])
         
         if not spreadsheets:
+            logger.error("No spreadsheets provided")
             return jsonify({'error': 'No spreadsheets provided'}), 400
             
         # Use the utility function to convert spreadsheets to tasks
@@ -245,13 +253,16 @@ def sync_data():
             logger.info("this is the spreadsheet data", spreadsheet_data)
             spreadsheet_id = _get_spreadsheet_id(spreadsheet_data.get('url'))  
             if not spreadsheet_id:
+                logger.error("Invalid spreadsheet URL")
                 return jsonify({'error': 'Invalid spreadsheet URL'}), 400
             spreadsheet = spreadsheet_service.get_spreadsheet_by_id(spreadsheet_id, user['id'])
             if not spreadsheet:
+                logger.error(f"Spreadsheet {spreadsheet_data.get('title')} not found or access denied")
                 return jsonify({'error': f'Spreadsheet {spreadsheet_data.get("title")} not found or access denied'}), 404
         
         # Send tasks to worker instead of spreadsheets
         data_service.send_to_worker(tasks, credentials)
+        logger.info("Sync task queued successfully for %d spreadsheets", len(tasks))
         return jsonify({
             'message': f'Sync task queued successfully for {len(tasks)} spreadsheets',
             'warnings': errors if errors else None
