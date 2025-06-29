@@ -59,6 +59,6 @@ uritemplate==4.1.1
 urllib3==1.26.16
 webencodings==0.5.1
 Werkzeug==3.0.3
-yfinance==0.2.25
+yfinance==0.2.64
 zipp==3.19.2
 psycopg2-binary==2.9.9

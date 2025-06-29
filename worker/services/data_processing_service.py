@@ -424,7 +424,7 @@ class DataProcessingService:
                             global_buy_data[name].append([
                                 transaction[Raw_constants.DATE], 
                                 transaction[Raw_constants.QUANTITY], 
-                                transaction[TransDetails_constants.FINAL_AMOUNT]
+                                transaction[Raw_constants.NET_AMOUNT]
                             ])
                     else:
                         if name not in global_sell_data:
@@ -433,7 +433,7 @@ class DataProcessingService:
                             global_sell_data[name].append([
                                 transaction[Raw_constants.DATE], 
                                 abs(transaction[Raw_constants.QUANTITY]), 
-                                abs(transaction[TransDetails_constants.FINAL_AMOUNT])
+                                abs(transaction[Raw_constants.NET_AMOUNT])
                             ])
                 
                 if transaction_type == SELL:
@@ -448,14 +448,14 @@ class DataProcessingService:
                         for _, transaction in infoMap[name][date][BUY].iterrows():
                             buyData.append([
                                 transaction[Raw_constants.QUANTITY], 
-                                transaction[TransDetails_constants.FINAL_AMOUNT]
+                                transaction[Raw_constants.NET_AMOUNT]
                             ])
                         
                         # Process sell transactions
                         for _, transaction in infoMap[name][date][transaction_type].iterrows():
                             sellData.append([
                                 abs(transaction[Raw_constants.QUANTITY]), 
-                                abs(transaction[TransDetails_constants.FINAL_AMOUNT])
+                                abs(transaction[Raw_constants.NET_AMOUNT])
                             ])
                             
                         i, j = 0, 0
