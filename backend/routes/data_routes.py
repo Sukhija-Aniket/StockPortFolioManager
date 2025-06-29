@@ -77,12 +77,12 @@ def add_data():
     try:
         user = session.get('user')
         credentials = session.get('credentials')
-        
+        # TODO: Keep a Repository of all stock split and bonus share issues notices.
+        # TODO: A stock split or bonus share happens, in that case raw_data should be updated.
         # TODO: Improve for not adding already existing data.
         # TODO: Improve for adding data for grow from other brokers.
-        # TODO: Taxation Calculation is done not on the final amount but on the amount before brokerage.
         # TODO: Add one more page where I sort by share, and show the taxation data for each sell transaction.
-        # TODO: fix the api to fetch current price of the share.
+        # TODO: fix the api to fetch current price of the share --> done, not released yet.
         
         # Check if files were uploaded
         if 'files' not in request.files:
