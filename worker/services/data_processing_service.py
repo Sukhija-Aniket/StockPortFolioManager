@@ -171,10 +171,15 @@ class DataProcessingService:
                 else:
                     self._process_buy_transactions(info_map[name], row_data[name])
             
+            # Collect all unique stock names for batch current price fetching
+            stock_names = list(row_data.keys())
+            logger.info(f"Batch fetching current prices for {len(stock_names)} stocks")
+            batch_current_prices = self.market_data_helper.batch_get_current_prices(stock_names)
+            
             # Create final DataFrame
             for share_name, share_details in row_data.items():
-                # Get current stock price
-                current_price = self._get_current_price(share_name)
+                # Get current stock price from batch results
+                current_price = batch_current_prices.get(share_name, 0.0)
                 
                 new_row = pd.Series({
                     ShareProfitLoss_constants.DATE: share_details[ShareProfitLoss_constants.DATE],
@@ -270,6 +275,15 @@ class DataProcessingService:
     def _get_stock_price(self, date: datetime, name: str) -> List[float]:
         """Get stock price details for a given date and stock name"""
         return self.market_data_helper.get_stock_price_details(date, name)
+    
+    def get_market_data_cache_stats(self) -> Dict:
+        """Get market data cache statistics"""
+        return self.market_data_helper.get_cache_stats()
+    
+    def clear_market_data_cache(self) -> None:
+        """Clear market data cache"""
+        self.market_data_helper.clear_cache()
+        logger.info("Market data cache cleared")
 
     def process_daily_profit_loss(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process daily profit loss data"""
@@ -299,14 +313,23 @@ class DataProcessingService:
                              if not key.startswith('__')}
             df = pd.DataFrame(columns=list(constants_dict.values()))
             
+            # Collect all unique stock-date combinations for batch API calls
+            stock_dates = []
+            for (date, name), group in grouped_data:
+                stock_dates.append((name, date))
+            
+            # Batch fetch all stock prices
+            logger.info(f"Batch fetching prices for {len(stock_dates)} stock-date combinations")
+            batch_prices = self.market_data_helper.batch_get_stock_prices(stock_dates)
+            
             for (date, name), group in grouped_data:
                 date_str = date.strftime(self.config.DATA_TIME_FORMAT)
                 if date_str not in daily_spendings:
                     daily_spendings[date_str] = 0.0
                     row_data[date_str] = {}
                 
-                # Get price details from market data helper
-                price_details = self._get_stock_price(date, name)
+                # Get price details from batch results
+                price_details = batch_prices.get((name, date), [])
                 
                 average_price = 0.0
                 quantity = 0.0
