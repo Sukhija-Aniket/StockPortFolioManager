@@ -13,8 +13,11 @@ RUN apt-get update && \
 # Copy the requirements file
 COPY requirements.txt .
 
+# Use build argument for version
+ARG SHARED_VERSION=v0.1.14
+
 # Install shared package from git repository with specific version tag
-RUN pip install --force-reinstall git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@v0.1.14#subdirectory=shared
+RUN pip install --force-reinstall git+https://github.com/Sukhija-Aniket/StockPortfolioManager.git@${SHARED_VERSION}#subdirectory=shared
 
 # Install other dependencies
 RUN pip install --no-cache-dir -r requirements.txt
